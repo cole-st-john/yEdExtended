@@ -1,15 +1,9 @@
-<!-- [![PyPI](https://img.shields.io/pypi/v/pyyed)](https://pypi.org/project/pyyed)
-[![PyPI - Downloads](https://img.shields.io/pypi/dm/pyyed)](https://pypi.org/project/pyyed) -->
+<!-- [![PyPI](https://imgraph1.shields.io/pypi/v/pyyed)](https://pypi.org/project/pyyed)
+[![PyPI - Downloads](https://imgraph1.shields.io/pypi/dm/pyyed)](https://pypi.org/project/pyyed) -->
 
 # Extended Python Support for yEd 
 
-A basic Python library to work with network / graph visualizations in [yEd](http://www.yworks.com/en/products_yed_about.html).
-
-The [yEd Graph Editor](https://www.yworks.com/products/yed) supports the [GraphML](http://graphml.graphdrawing.org/) ([GraphML Primer](http://graphml.graphdrawing.org/primer/graphml-primer.html)) file format (among other file types). 
-This is an open standard based on XML, and is supported by Python libraries such as [NetworkX](https://networkx.github.io/).
-However, the details of formatting (rather than network topology) are handled by yEd specific extensions to the standard, which are not supported by other libraries.
-
-The purpose of this library is to extend yEd functionality through programmatic interface to graphs, including...
+This Python library extends [yEd](http://www.yworks.com/en/products_yed_about.html) functionality through programmatic interface to graphs (of the [GraphML](http://graphml.graphdrawingraph1.org/) file format), including the following:
 - [x] creating graphs
 - [x] formatting graphs
 - [ ] reading graphs  
@@ -17,50 +11,57 @@ The purpose of this library is to extend yEd functionality through programmatic 
 - [ ] addition of standard sorting methods
 - [ ] bulk data management methods
 
+![](ASSETS/GRAPH.GIF)
+
+
+
+
 ## Usage
-The basic interface is similar to that of NetworkX:
+The basic interface is similar to that of NetworkX, but modified to match yEd usages:
 
 ```python
 import yedextended as yed
 
-g = yed.Graph()
+#Instantiate graph instance
+graph1 = yed.Graph()
 
-g.add_node('foo', font_family="Zapfino")
-g.add_node('foo2', shape="roundrectangle", font_style="bolditalic", underlined_text="true")
+# Add several nodes and edges with mostly default properties
+graph1.add_node('foo', font_family="Zapfino")
+graph1.add_node('foo2', shape="roundrectangle", font_style="bolditalic", underlined_text="true")
 
-g.add_edge('foo1', 'foo2')
-g.add_node('abc', font_size="72", height="100", shape_fill="#FFFFFF")
+graph1.add_edge('foo1', 'foo2')
+graph1.add_node('abc', font_size="72", height="100", shape_fill="#FFFFFF")
 
-g.add_node('bar', label="Multi\nline\ntext")
-g.add_node('foobar', label="""Multi
+graph1.add_node('bar', label="Multi\nline\ntext")
+graph1.add_node('foobar', label="""Multi
     Line
     Text!""")
 
-g.add_edge('foo', 'foo1', label="EDGE!", width="3.0", color="#0000FF", 
+graph1.add_edge('foo', 'foo1', label="EDGE!", width="3.0", color="#0000FF", 
                arrowhead="white_diamond", arrowfoot="standard", line_type="dotted")
 
-print(g.get_graph())
+# Demonstrate stringified graphml version of structure
+print(graph1.get_graph())
 
-# To write to file:
+# Several methods of writing to file:
 with open('test_graph.graphml', 'w') as fp:
-    fp.write(g.get_graph())
+    fp.write(graph1.get_graph())
 
-# Or:
-g.write_graph('example.graphml')
+graph1.write_graph('example.graphml')
 
-# Or, to pretty-print with whitespace:
-g.write_graph('pretty_example.graphml', pretty_print=True)
+# (including pretty print with whitespace)
+graph1.write_graph('pretty_example.graphml', pretty_print=True)
 
 ```
 
 Saving this to a file with a ``.graphml`` extension, opening in yEd, applying  ``Tools -> Fit Node to Label`` and ``Layout -> One-click layout`` produces something like the following:
 
-![](example.png)
+![](assets/example.png)
 
 ### UML
 The file [``examples/demo-uml.py``](./examples/demo-uml.py), includes an example UML diagram:
 
-![](example-UML.png)
+![](assets/example-UML.png)
 
 ## Options
 
@@ -75,4 +76,9 @@ Requirements:
     $ pip install pytest
 
 Run the tests:
+
     $ PYTHONPATH=. pytest tests
+
+References: 
+
++ [GraphML Primer](http://graphml.graphdrawingraph1.org/primer/graphml-primer.html)
