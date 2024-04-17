@@ -1,25 +1,29 @@
-[![PyPI](https://img.shields.io/pypi/v/pyyed)](https://pypi.org/project/pyyed)
-[![PyPI - Downloads](https://img.shields.io/pypi/dm/pyyed)](https://pypi.org/project/pyyed)
+<!-- [![PyPI](https://img.shields.io/pypi/v/pyyed)](https://pypi.org/project/pyyed)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/pyyed)](https://pypi.org/project/pyyed) -->
 
-# yEd Py
+# Extended Python Support for yEd 
 
-A simple Python library to export networks to [yEd](http://www.yworks.com/en/products_yed_about.html).
+A basic Python library to work with network / graph visualizations in [yEd](http://www.yworks.com/en/products_yed_about.html).
 
-Is is [available from PyPI](https://pypi.org/project/pyyed/).
-
-The [yEd Graph Editor](https://www.yworks.com/products/yed) supports the [GraphML](http://graphml.graphdrawing.org/) ([GraphML Primer](http://graphml.graphdrawing.org/primer/graphml-primer.html)) file format. 
+The [yEd Graph Editor](https://www.yworks.com/products/yed) supports the [GraphML](http://graphml.graphdrawing.org/) ([GraphML Primer](http://graphml.graphdrawing.org/primer/graphml-primer.html)) file format (among other file types). 
 This is an open standard based on XML, and is supported by Python libraries such as [NetworkX](https://networkx.github.io/).
 However, the details of formatting (rather than network topology) are handled by yEd specific extensions to the standard, which are not supported by other libraries.
- 
-I therefore wrote this library to provide an easy interface that lets you specify how a graph should look, and generates corresponding graphML that can be opened in yEd.
+
+The purpose of this library is to extend yEd functionality through programmatic interface to graphs, including...
+- [x] creating graphs
+- [x] formatting graphs
+- [ ] reading graphs  
+- [ ] enforcing rules on graphs
+- [ ] addition of standard sorting methods
+- [ ] bulk data management methods
 
 ## Usage
-The interface is similar to that of NetworkX:
+The basic interface is similar to that of NetworkX:
 
 ```python
-import pyyed
+import yedextended as yed
 
-g = pyyed.Graph()
+g = yed.Graph()
 
 g.add_node('foo', font_family="Zapfino")
 g.add_node('foo2', shape="roundrectangle", font_style="bolditalic", underlined_text="true")
@@ -58,29 +62,17 @@ The file [``examples/demo-uml.py``](./examples/demo-uml.py), includes an example
 
 ![](example-UML.png)
 
-The arrowheads used in UML class diagrams correspond to ``crows_foot_one_optional`` (association or dependency), ``white_delta`` (inheritance or implementation), ``white_diamond`` (aggregation), and ``diamond`` (composition).
-
- The ``line_type`` is either ``line`` or ``dashed``.
-
-
-
-
 ## Options
 
-Valid ``node shapes`` are: "rectangle", "rectangle3d", "roundrectangle", "diamond", "ellipse", "fatarrow", "fatarrow2", "hexagon", "octagon", "parallelogram", "parallelogram2", "star5", "star6", "star6", "star8", "trapezoid", "trapezoid2", "triangle", "trapezoid2", "triangle"
-
-Valid ``line_types`` are: "line", "dashed", "dotted", "dashed_dotted"
-
-Valid ``font_styles`` are: "plain", "bold", "italic", "bolditalic"
-
-Valid ``arrow_types`` are: "none", "standard", "white_delta", "diamond", "white_diamond", "short", "plain", "concave", "concave", "convex", "circle", "transparent_circle", "dash", "skewed_dash", "t_shape", "crows_foot_one_mandatory", "crows_foot_many_mandatory", "crows_foot_many_optional", "crows_foot_many_optional", "crows_foot_one", "crows_foot_many", "crows_foot_optional"
+Provides comprehensive support for ``node_shapes``, ``line_types``, ``font_styles``, ``arrow_types``, custom parameters and more.
 
 ## Development
+
+Interested in contributing or co-managing further development?  Just reach out!
 
 Requirements:
 
     $ pip install pytest
 
 Run the tests:
-
     $ PYTHONPATH=. pytest tests
