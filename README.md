@@ -11,7 +11,7 @@ This Python library extends [yEd](http://www.yworks.com/en/products_yed_about.ht
 - [ ] addition of standard sorting methods
 - [ ] bulk data management methods
 
-![](./ASSETS/GRAPH.GIF)
+![](/ASSETS/GRAPH.GIF)
 
 
 
