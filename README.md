@@ -11,7 +11,7 @@ This Python library extends [yEd](http://www.yworks.com/en/products_yed_about.ht
 - [ ] addition of standard sorting methods
 - [ ] bulk data management methods
 
-![](ASSETS/GRAPH.GIF)
+![](./ASSETS/GRAPH.GIF)
 
 
 
@@ -56,12 +56,12 @@ graph1.write_graph('pretty_example.graphml', pretty_print=True)
 
 Saving this to a file with a ``.graphml`` extension, opening in yEd, applying  ``Tools -> Fit Node to Label`` and ``Layout -> One-click layout`` produces something like the following:
 
-![](assets/example.png)
+![](./assets/example.png)
 
 ### UML
 The file [``examples/demo-uml.py``](./examples/demo-uml.py), includes an example UML diagram:
 
-![](assets/example-UML.png)
+![](./assets/example-UML.png)
 
 ## Options
 
