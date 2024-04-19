@@ -1,6 +1,3 @@
-<!-- [![PyPI](https://imgraph1.shields.io/pypi/v/pyyed)](https://pypi.org/project/pyyed)
-[![PyPI - Downloads](https://imgraph1.shields.io/pypi/dm/pyyed)](https://pypi.org/project/pyyed) -->
-
 # Extended Python Support for yEd 
 
 This Python library extends [yEd](http://www.yworks.com/en/products_yed_about.html) functionality through programmatic interface to graphs (of the [GraphML](http://graphml.graphdrawingraph1.org/) file format), including the following:
