@@ -38,62 +38,62 @@ group1 = graph1.add_group("group1", custom_properties={"Country": "Kitchen"})
 
 # Create Nodes
 graph1.add_node(
-	"Pasta City",
-	custom_properties={
-		"Population": "13000",
-		"Unemployment": "13.7",
-		"Environmental Engagements": "true",
-		"Mayor": "Genarro",
-	},
+    "Pasta City",
+    custom_properties={
+        "Population": "13000",
+        "Unemployment": "13.7",
+        "Environmental Engagements": "true",
+        "Mayor": "Genarro",
+    },
 )
 graph1.add_node(
-	"Wurst Stadt",
-	custom_properties={"Population": "25100", "Unemployment": "6.2", "Mayor": "Orlowsky"},
+    "Wurst Stadt",
+    custom_properties={"Population": "25100", "Unemployment": "6.2", "Mayor": "Orlowsky"},
 )
 graph1.add_node(
-	"Gruyereville",
-	custom_properties={
-		"Population": "29650",
-		"Unemployment": "11.8",
-		"Environmental Engagements": "true",
-		"Mayor": "Delage",
-	},
+    "Gruyereville",
+    custom_properties={
+        "Population": "29650",
+        "Unemployment": "11.8",
+        "Environmental Engagements": "true",
+        "Mayor": "Delage",
+    },
 )
 
 # Create Edges
 graph1.add_edge(
-	"Pasta City",
-	"Wurst Stadt",
-	label="N666",
-	arrowhead="none",
-	custom_properties={
-		"Year of build": "1974",
-		"Distance": "356",
-		"Toll Free": "false",
-		"Availability": "85.7",
-	},
+    "Pasta City",
+    "Wurst Stadt",
+    label="N666",
+    arrowhead="none",
+    custom_properties={
+        "Year of build": "1974",
+        "Distance": "356",
+        "Toll Free": "false",
+        "Availability": "85.7",
+    },
 )
 graph1.add_edge(
-	"Pasta City",
-	"Gruyereville",
-	label="E55",
-	arrowhead="none",
-	custom_properties={
-		"Year of build": "1986",
-		"Distance": "1444",
-		"Availability": "96.7",
-	},
+    "Pasta City",
+    "Gruyereville",
+    label="E55",
+    arrowhead="none",
+    custom_properties={
+        "Year of build": "1986",
+        "Distance": "1444",
+        "Availability": "96.7",
+    },
 )
 graph1.add_edge(
-	"Gruyereville",
-	"Wurst Stadt",
-	label="E23",
-	arrowhead="none",
-	custom_properties={"Year of build": "2011", "Distance": "740", "Toll Free": "false"},
+    "Gruyereville",
+    "Wurst Stadt",
+    label="E23",
+    arrowhead="none",
+    custom_properties={"Year of build": "2011", "Distance": "740", "Toll Free": "false"},
 )
 
 # Write Graph
-graph1.write_graph("demo-custom-properties-nodes-edges.graphml", pretty_print=True)
+graph1.persist_graph("demo-custom-properties-nodes-edges.graphml", pretty_print=True)
 
 print(40 * "=")
 print("""

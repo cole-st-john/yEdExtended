@@ -9,4 +9,4 @@ group12 = group1.add_group("sub12")
 n121 = group12.add_node("node121")
 group122 = group12.add_group("sub122")
 
-graph1.write_graph("test.graphml")
+graph1.persist_graph("test.graphml")
