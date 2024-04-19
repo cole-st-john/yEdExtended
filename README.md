@@ -38,16 +38,16 @@ graph1.add_edge('foo', 'foo1', label="EDGE!", width="3.0", color="#0000FF",
                arrowhead="white_diamond", arrowfoot="standard", line_type="dotted")
 
 # Demonstrate stringified graphml version of structure
-print(graph1.get_graph())
+print(graph1.stringify_graph())
 
 # Several methods of writing to file:
 with open('test_graph.graphml', 'w') as fp:
-    fp.write(graph1.get_graph())
+    fp.write(graph1.stringify_graph())  
 
-graph1.write_graph('example.graphml')
+graph1.persist_graph('example.graphml')
 
 # (including pretty print with whitespace)
-graph1.write_graph('pretty_example.graphml', pretty_print=True)
+graph1.persist_graph('pretty_example.graphml', pretty_print=True)
 
 ```
 
