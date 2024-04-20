@@ -12,6 +12,7 @@ import re
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass, field  # FIXME: to be incorporated
 from shutil import which
 from tkinter import messagebox as msg
 from typing import Any, List, Optional
@@ -1140,63 +1141,57 @@ class Graph:
             graph_root = root.find("graph")
 
             graph_dir = graph_root.get("edgedefault")
-            id = graph_root.get("id")
+            graph_id = graph_root.get("id")
 
-            new_graph = Graph(directed=graph_dir, graph_id=id)
+            new_graph = Graph(directed=graph_dir, graph_id=graph_id)
 
             # def recursive_node_extraction(node):
             #     pass
 
             # groups and nodes - first establish objects
-            for graph_node in graph_root.findall("node"):
+            for node in graph_root.findall("node"):
                 # normal nodes
-                # if not "yfiles.foldertype" in graph_node.attrib:
-                # node_init_dict = dict()
+                if not "yfiles.foldertype" in node.attrib:
+                    node_init_dict = dict()
 
-                # node_init_dict["node_name"] = graph_node.attrib.get("id")
+                    node_init_dict["node_name"] = node.attrib.get("id")
+                    data = node[0]  # FIXME: not robust :  url/descr/custom_prop
+                    shape = data[0]
+                    node_init_dict["node_type"] = shape.tag
 
-                # # 2 layer deeper
-                # node_type_node = graph_node[0][0]
-                # node_init_dict["node_type"] = node_type_node.tag
+                    geom = shape.find("Geometry")
+                    node_init_dict["height"] = geom.attrib["height"]
+                    node_init_dict["width"] = geom.attrib["width"]
+                    node_init_dict["x"] = geom.attrib["x"]
+                    node_init_dict["y"] = geom.attrib["y"]
 
-                # 1 layer deeper
-                # node_type_node.find("Fill")
-                # node_type_node.find("Geometry")
-                # node_type_node.find("BorderStyle")
-                # node_type_node.find("NodeLabel")
-                # node_type_node.find("Shape")
-                # new_graph.add_node(node_init_dict)
+                    fill = shape.find("Fill")
+                    node_init_dict["shape_fill"] = fill.attrib["color"]
+                    node_init_dict["transparent"] = fill.attrib["transparent"]
 
-                # node_name,
-                # label = (None,)
-                # label_alignment = ("center",)
-                # shape = ("rectangle",)
-                # font_family = ("Dialog",)
-                # underlined_text = ("false",)
-                # font_style = ("plain",)
-                # font_size = ("12",)
-                # shape_fill = ("#FFCC00",)
-                # transparent = ("false",)
-                # border_color = ("#000000",)
-                # border_type = ("line",)
-                # border_width = ("1.0",)
-                # height = (False,)
-                # width = (False,)
-                # x = (False,)
-                # y = (False,)
-                # node_type = ("ShapeNode",)
-                # UML = (False,)
-                # custom_properties = (None,)
-                # description = ("",)
-                # url = ("",)
-                # list_of_labels
-                # pass
+                    border_style = shape.find("BorderStyle")
+                    node_init_dict["border_color"] = border_style.attrib["color"]
+                    node_init_dict["border_type"] = border_style.attrib["type"]
+                    node_init_dict["border_width"] = border_style.attrib["width"]
+
+                    node_label = shape.find("NodeLabel")
+                    node_init_dict["label"] = node_label.text
+
+                    shape_sub = shape.find("Shape")
+                    if shape_sub:
+                        node_init_dict["shape"] = shape_sub.attrib["type"]
+
+                    uml = shape.find("UML")
+                    if uml:
+                        node_init_dict["shape"] = uml.attrib["AttributeLabel"]
+                    # TODO: THERE IS FURTHER DETAIL TO PARSE HERE under uml
+
+                    # create node
+                    new_graph.add_node(**node_init_dict)
 
                 # group nodes
-                # else:
-                #     pass
-
-                print(graph_node.tag, graph_node.attrib)
+                else:
+                    pass
 
             # edges then establish connections
             for graph_node in graph_root.findall("edge"):
