@@ -7,6 +7,7 @@ This Python library extends [yEd](http://www.yworks.com/en/products_yed_about.ht
 - [ ] enforcing rules on graphs
 - [ ] addition of standard sorting methods
 - [ ] bulk data management methods
+- [x] management of the yEd application
 
 ![image](images/graph.gif)
 
