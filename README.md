@@ -3,7 +3,7 @@
 This Python library extends [yEd](http://www.yworks.com/en/products_yed_about.html) functionality through programmatic interface to graphs (of the [GraphML](http://graphml.graphdrawingraph1.org/) file format), including the following:
 - [x] creating graphs
 - [x] formatting graphs
-- [ ] reading graphs  
+- [ ] reading graphs  - **Under (Active) Construction**
 - [ ] enforcing rules on graphs
 - [ ] addition of standard sorting methods
 - [ ] bulk data management methods
