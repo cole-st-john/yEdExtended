@@ -952,6 +952,55 @@ class Graph:
 
         self.graphml: ET.Element  # FIXME:
 
+    def add_node(self, node_name, **kwargs):
+        """Adding defined node to graph"""
+        if node_name in self.existing_entities:
+            raise RuntimeWarning("Node %s already exists" % node_name)
+
+        node = Node(node_name, **kwargs)
+        self.nodes[node_name] = node
+        self.existing_entities[node_name] = node
+        return node
+
+    def add_edge(self, node1_name, node2_name, **kwargs):
+        """Adding edge to graph - uses node names not node objects."""
+
+        self.existing_entities.get(node1_name) or self.add_node(node1_name)
+        self.existing_entities.get(node2_name) or self.add_node(node2_name)
+
+        self.num_edges += 1
+        kwargs["edge_id"] = str(self.num_edges)
+        edge = Edge(node1_name, node2_name, **kwargs)
+        self.edges[edge.edge_id] = edge
+        return edge
+
+    def add_group(self, group_id, **kwargs):
+        """Adding group to graph"""
+        if group_id in self.existing_entities:
+            raise RuntimeWarning("Node %s already exists" % group_id)
+
+        group = Group(group_id, self, **kwargs)
+        self.groups[group_id] = group
+        self.existing_entities[group_id] = group
+        return group
+
+    def define_custom_property(self, scope, name, property_type, default_value):
+        """Adding custom properties to graph (which makes them available on the contained objects in yEd)"""
+        if scope not in custom_property_scopes:
+            raise RuntimeWarning("Scope %s not recognised" % scope)
+        if property_type not in custom_property_types:
+            raise RuntimeWarning("Property Type %s not recognised" % property_type)
+        if not isinstance(default_value, str):
+            raise RuntimeWarning("default_value %s needs to be a string" % default_value)
+        custom_property = CustomPropertyDefinition(
+            scope, name, property_type, default_value
+        )
+        self.custom_properties.append(custom_property)
+        if scope == "node":
+            Node.set_custom_properties_defs(custom_property)
+        elif scope == "edge":
+            Edge.set_custom_properties_defs(custom_property)
+
     def construct_graphml(self):
         """Creating template graphml xml structure and then placing all graph items into it."""
 
@@ -1057,59 +1106,14 @@ class Graph:
         else:
             return ET.tostring(self.graphml, encoding="UTF-8").decode()
 
-    def add_node(self, node_name, **kwargs):
-        """Adding defined node to graph"""
-        if node_name in self.existing_entities:
-            raise RuntimeWarning("Node %s already exists" % node_name)
-
-        node = Node(node_name, **kwargs)
-        self.nodes[node_name] = node
-        self.existing_entities[node_name] = node
-        return node
-
-    def add_edge(self, node1_name, node2_name, **kwargs):
-        """Adding edge to graph - uses node names not node objects."""
-
-        self.existing_entities.get(node1_name) or self.add_node(node1_name)
-        self.existing_entities.get(node2_name) or self.add_node(node2_name)
-
-        self.num_edges += 1
-        kwargs["edge_id"] = str(self.num_edges)
-        edge = Edge(node1_name, node2_name, **kwargs)
-        self.edges[edge.edge_id] = edge
-        return edge
-
-    def add_group(self, group_id, **kwargs):
-        """Adding group to graph"""
-        if group_id in self.existing_entities:
-            raise RuntimeWarning("Node %s already exists" % group_id)
-
-        group = Group(group_id, self, **kwargs)
-        self.groups[group_id] = group
-        self.existing_entities[group_id] = group
-        return group
-
-    def define_custom_property(self, scope, name, property_type, default_value):
-        """Adding custom properties to graph (which makes them available on the contained objects in yEd)"""
-        if scope not in custom_property_scopes:
-            raise RuntimeWarning("Scope %s not recognised" % scope)
-        if property_type not in custom_property_types:
-            raise RuntimeWarning("Property Type %s not recognised" % property_type)
-        if not isinstance(default_value, str):
-            raise RuntimeWarning("default_value %s needs to be a string" % default_value)
-        custom_property = CustomPropertyDefinition(
-            scope, name, property_type, default_value
-        )
-        self.custom_properties.append(custom_property)
-        if scope == "node":
-            Node.set_custom_properties_defs(custom_property)
-        elif scope == "edge":
-            Edge.set_custom_properties_defs(custom_property)
-
-    def from_existing_graph(self, file):  # FIXME: CURRENTLY UNDER CONSTRUCTION
-        """Manage ingestion of existing graph file"""
-
-        graph_file = Graph_file(file)
+    def from_existing_graph(
+        self, file: str | Graph_file
+    ):  # FIXME: CURRENTLY UNDER CONSTRUCTION
+        """Parse xml of existing graph file into python"""
+        if isinstance(file, Graph_file):
+            graph_file = file
+        else:
+            graph_file = Graph_file(file)
 
         if not graph_file.file_exists:
             raise FileNotFoundError
@@ -1146,13 +1150,51 @@ class Graph:
             # groups and nodes - first establish objects
             for graph_node in graph_root.findall("node"):
                 # normal nodes
-                if not "yfiles.foldertype" in graph_node.attrib:
-                    # extract info
-                    # add_node()
-                    pass
+                # if not "yfiles.foldertype" in graph_node.attrib:
+                # node_init_dict = dict()
+
+                # node_init_dict["node_name"] = graph_node.attrib.get("id")
+
+                # # 2 layer deeper
+                # node_type_node = graph_node[0][0]
+                # node_init_dict["node_type"] = node_type_node.tag
+
+                # 1 layer deeper
+                # node_type_node.find("Fill")
+                # node_type_node.find("Geometry")
+                # node_type_node.find("BorderStyle")
+                # node_type_node.find("NodeLabel")
+                # node_type_node.find("Shape")
+                # new_graph.add_node(node_init_dict)
+
+                # node_name,
+                # label = (None,)
+                # label_alignment = ("center",)
+                # shape = ("rectangle",)
+                # font_family = ("Dialog",)
+                # underlined_text = ("false",)
+                # font_style = ("plain",)
+                # font_size = ("12",)
+                # shape_fill = ("#FFCC00",)
+                # transparent = ("false",)
+                # border_color = ("#000000",)
+                # border_type = ("line",)
+                # border_width = ("1.0",)
+                # height = (False,)
+                # width = (False,)
+                # x = (False,)
+                # y = (False,)
+                # node_type = ("ShapeNode",)
+                # UML = (False,)
+                # custom_properties = (None,)
+                # description = ("",)
+                # url = ("",)
+                # list_of_labels
+                # pass
+
                 # group nodes
-                else:
-                    pass
+                # else:
+                #     pass
 
                 print(graph_node.tag, graph_node.attrib)
 
@@ -1162,9 +1204,9 @@ class Graph:
 
             return new_graph
 
-        # def display(self):
-        #     """Displaying groups, nodes, edges in list format"""
-        #     pass
+    # def display(self): #TODO: ADD THIS
+    #     """Displaying groups, nodes, edges in list format"""
+    #     pass
 
 
 # App related functions -------------------------
