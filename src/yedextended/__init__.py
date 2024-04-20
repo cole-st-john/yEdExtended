@@ -8,6 +8,7 @@ Planned is the addition of read, management and other capabilities.
 
 import os
 import platform
+import re
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
@@ -339,7 +340,7 @@ class CustomPropertyDefinition:
         self.default_value = default_value
         self.id = "%s_%s" % (self.scope, self.name)
 
-    def convert(self):
+    def convert_to_xml(self):
         custom_prop_key = ET.Element("key", id=self.id)
         custom_prop_key.set("for", self.scope)
         custom_prop_key.set("attr.name", self.name)
@@ -519,7 +520,7 @@ class Group:
         self.edges[edge.edge_id] = edge
         return edge
 
-    def convert(self):
+    def convert_to_xml(self):
         """Converting graph object to graphml xml object"""
         node = ET.Element("node", id=self.group_id)
         node.set("yfiles.foldertype", "group")
@@ -571,15 +572,15 @@ class Group:
             description_node.text = self.description
 
         for node_id in self.nodes:
-            n = self.nodes[node_id].convert()
+            n = self.nodes[node_id].convert_to_xml()
             graph.append(n)
 
         for group_id in self.groups:
-            n = self.groups[group_id].convert()
+            n = self.groups[group_id].convert_to_xml()
             graph.append(n)
 
         for edge_id in self.edges:
-            e = self.edges[edge_id].convert()
+            e = self.edges[edge_id].convert_to_xml()
             graph.append(e)
 
         # Node Custom Properties
@@ -719,7 +720,7 @@ class Node:
         self.list_of_labels.append(NodeLabel(label_text, **kwargs))
         return self
 
-    def convert(self):
+    def convert_to_xml(self):
         """Converting node object to xml object"""
 
         node = ET.Element("node", id=str(self.node_name))
@@ -897,7 +898,7 @@ class Edge:
         # Enable method chaining
         return self
 
-    def convert(self):
+    def convert_to_xml(self):
         """Converting edge object to xml object"""
         edge = ET.Element(
             "edge", id=str(self.edge_id), source=str(self.node1), target=str(self.node2)
@@ -952,8 +953,9 @@ class Graph:
         self.graphml: ET.Element  # FIXME:
 
     def construct_graphml(self):
-        """Creating template graphml file"""
+        """Creating template graphml xml structure and then placing all graph items into it."""
 
+        # Creating XML structure in Graphml format
         # xml = ET.Element("?xml", version="1.0", encoding="UTF-8", standalone="no")
 
         graphml = ET.Element("graphml", xmlns="http://graphml.graphdrawing.org/xmlns")
@@ -1000,35 +1002,35 @@ class Graph:
 
         # Definition: Custom Properties for Nodes and Edges
         for prop in self.custom_properties:
-            graphml.append(prop.convert())
+            graphml.append(prop.convert_to_xml())
 
         edge_key = ET.SubElement(graphml, "key", id="data_edge")
         edge_key.set("for", "edge")
         edge_key.set("yfiles.type", "edgegraphics")
 
+        # Graph node containing actual objects
         graph = ET.SubElement(
             graphml, "graph", edgedefault=self.directed, id=self.graph_id
         )
 
+        # Convert python graph objects into xml structure
         for node in self.nodes.values():
-            graph.append(node.convert())
+            graph.append(node.convert_to_xml())
 
         for node in self.groups.values():
-            graph.append(node.convert())
+            graph.append(node.convert_to_xml())
 
         for edge in self.edges.values():
-            graph.append(edge.convert())
+            graph.append(edge.convert_to_xml())
 
         self.graphml = graphml
 
-    def persist_graph(
-        self, filename=None, pretty_print=False, overwrite=False
-    ) -> Graph_file:
-        """Convert graphml xml tree into graphml file.
+    def persist_graph(self, file=None, pretty_print=False, overwrite=False) -> Graph_file:
+        """Convert graphml object->xml tree->graphml file.
         Temporary naming used if not given.
         """
 
-        graph_file = Graph_file(filename)
+        graph_file = Graph_file(file)
 
         if graph_file.file_exists and not overwrite:
             raise FileExistsError
@@ -1103,6 +1105,66 @@ class Graph:
             Node.set_custom_properties_defs(custom_property)
         elif scope == "edge":
             Edge.set_custom_properties_defs(custom_property)
+
+    def from_existing_graph(self, file):  # FIXME: CURRENTLY UNDER CONSTRUCTION
+        """Manage ingestion of existing graph file"""
+
+        graph_file = Graph_file(file)
+
+        if not graph_file.file_exists:
+            raise FileNotFoundError
+
+        try:
+            with open(graph_file.fullpath, "r") as graph_file:
+                graph_str = graph_file.read()
+
+        except Exception as E:
+            print(f"Error: {E}")
+
+        else:
+            # Preprocessing of file for ease of parsing
+            graph_str = graph_str.replace("\n", " ")  # line returns
+            graph_str = graph_str.replace("\r", " ")  # line returns
+            graph_str = graph_str.replace("\t", " ")  # tabs
+            graph_str = re.sub("<graphml .*?>", "<graphml>", graph_str)  # unneeded schema
+            graph_str = graph_str.replace("> <", "><")  # empty text
+            graph_str = graph_str.replace("y:", "")  # unneeded namespace prefix
+            graph_str = re.sub(" {1,}", " ", graph_str)  # reducing redundant spaces
+            # print(graph_str) # debug
+
+            root = ET.fromstring(graph_str)
+            graph_root = root.find("graph")
+
+            graph_dir = graph_root.get("edgedefault")
+            id = graph_root.get("id")
+
+            new_graph = Graph(directed=graph_dir, graph_id=id)
+
+            # def recursive_node_extraction(node):
+            #     pass
+
+            # groups and nodes - first establish objects
+            for graph_node in graph_root.findall("node"):
+                # normal nodes
+                if not "yfiles.foldertype" in graph_node.attrib:
+                    # extract info
+                    # add_node()
+                    pass
+                # group nodes
+                else:
+                    pass
+
+                print(graph_node.tag, graph_node.attrib)
+
+            # edges then establish connections
+            for graph_node in graph_root.findall("edge"):
+                print(graph_node.tag, graph_node.attrib)
+
+            return new_graph
+
+        # def display(self):
+        #     """Displaying groups, nodes, edges in list format"""
+        #     pass
 
 
 # App related functions -------------------------
