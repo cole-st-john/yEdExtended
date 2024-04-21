@@ -79,9 +79,7 @@ def checkValue(
 
     if validValues:
         if value not in validValues:
-            raise InvalidValueError(
-                f"{parameter_name} '{value}' is not supported. Use: '{', '.join(validValues)}'"
-            )
+            raise InvalidValueError(f"{parameter_name} '{value}' is not supported. Use: '{', '.join(validValues)}'")
 
 
 class Graph_file:
@@ -141,20 +139,14 @@ class Label:
     ):
         # make class abstract
         if type(self) is Label:
-            raise Exception(
-                "Label is an abstract class and cannot be instantiated directly"
-            )
+            raise Exception("Label is an abstract class and cannot be instantiated directly")
 
         self._text = text
 
         # Initialize dictionary for parameters
         self._params = {}
-        self.updateParam(
-            "horizontalTextPosition", horizontal_text_position, horizontal_alignments
-        )
-        self.updateParam(
-            "verticalTextPosition", vertical_text_position, vertical_alignments
-        )
+        self.updateParam("horizontalTextPosition", horizontal_text_position, horizontal_alignments)
+        self.updateParam("verticalTextPosition", vertical_text_position, vertical_alignments)
         self.updateParam("alignment", alignment, horizontal_alignments)
         self.updateParam("fontStyle", font_style, font_styles)
 
@@ -167,9 +159,7 @@ class Label:
         self.updateParam("underlinedText", underlined_text.lower(), ["true", "false"])
         if background_color:
             has_background_color = "true"
-        self.updateParam(
-            "hasBackgroundColor", has_background_color.lower(), ["true", "false"]
-        )
+        self.updateParam("hasBackgroundColor", has_background_color.lower(), ["true", "false"])
         self.updateParam("width", width)
         self.updateParam("height", height)
         self.updateParam("borderColor", border_color)
@@ -249,9 +239,7 @@ class NodeLabel(Label):
         )
 
         self.updateParam("modelName", model_name, NodeLabel.validModelParams.keys())
-        self.updateParam(
-            "modelPosition", model_position, NodeLabel.validModelParams[model_name]
-        )
+        self.updateParam("modelPosition", model_position, NodeLabel.validModelParams[model_name])
 
 
 class EdgeLabel(Label):
@@ -312,9 +300,7 @@ class EdgeLabel(Label):
         )
 
         self.updateParam("modelName", model_name, EdgeLabel.validModelParams.keys())
-        self.updateParam(
-            "modelPosition", model_position, EdgeLabel.validModelParams[model_name]
-        )
+        self.updateParam("modelPosition", model_position, EdgeLabel.validModelParams[model_name])
         self.updateParam("preferredPlacement", preferred_placement)
 
 
@@ -490,30 +476,21 @@ class Group:
 
     def is_ancestor(self, node):
         """Check for possible nesting conflict of this id usage"""
-        return node.parent is not None and (
-            node.parent is self or self.is_ancestor(node.parent)
-        )
+        return node.parent is not None and (node.parent is self or self.is_ancestor(node.parent))
 
     def add_edge(self, node1_name, node2_name, **kwargs):
         """Adds edge - input: node names, not actual node objects"""
 
-        node1 = self.parent_graph.existing_entities.get(node1_name) or self.add_node(
-            node1_name
-        )
+        node1 = self.parent_graph.existing_entities.get(node1_name) or self.add_node(node1_name)
 
-        node2 = self.parent_graph.existing_entities.get(node2_name) or self.add_node(
-            node2_name
-        )
+        node2 = self.parent_graph.existing_entities.get(node2_name) or self.add_node(node2_name)
 
         # http://graphml.graphdrawing.org/primer/graphml-primer.html#Nested
         # The edges between two nodes in a nested graph have to be declared in a graph,
         # which is an ancestor of both nodes in the hierarchy.
 
         if not (self.is_ancestor(node1) and self.is_ancestor(node2)):
-            raise RuntimeWarning(
-                "Group %s is not ancestor of both %s and %s"
-                % (self.group_id, node1_name, node2_name)
-            )
+            raise RuntimeWarning("Group %s is not ancestor of both %s and %s" % (self.group_id, node1_name, node2_name))
 
         self.parent_graph.num_edges += 1
         kwargs["edge_id"] = str(self.parent_graph.num_edges)
@@ -732,9 +709,7 @@ class Node:
             ET.SubElement(shape, "y:Geometry", **self.geom)
         # <y:Geometry height="30.0" width="30.0" x="475.0" y="727.0"/>
 
-        ET.SubElement(
-            shape, "y:Fill", color=self.shape_fill, transparent=self.transparent
-        )
+        ET.SubElement(shape, "y:Fill", color=self.shape_fill, transparent=self.transparent)
 
         ET.SubElement(
             shape,
@@ -842,6 +817,7 @@ class Edge:
 
         if not edge_id:
             edge_id = "%s_%s" % (node1, node2)
+
         self.edge_id = str(edge_id)
 
         if source_label is not None:
@@ -901,16 +877,14 @@ class Edge:
 
     def convert_to_xml(self):
         """Converting edge object to xml object"""
-        edge = ET.Element(
-            "edge", id=str(self.edge_id), source=str(self.node1), target=str(self.node2)
-        )
+
+        edge = ET.Element("edge", id=str(self.edge_id), source=str(self.node1), target=str(self.node2))
+
         data = ET.SubElement(edge, "data", key="data_edge")
         pl = ET.SubElement(data, "y:PolyLineEdge")
 
         ET.SubElement(pl, "y:Arrows", source=self.arrowfoot, target=self.arrowhead)
-        ET.SubElement(
-            pl, "y:LineStyle", color=self.color, type=self.line_type, width=self.width
-        )
+        ET.SubElement(pl, "y:LineStyle", color=self.color, type=self.line_type, width=self.width)
 
         for label in self.list_of_labels:
             label.addSubElement(pl)
@@ -993,9 +967,7 @@ class Graph:
             raise RuntimeWarning("Property Type %s not recognised" % property_type)
         if not isinstance(default_value, str):
             raise RuntimeWarning("default_value %s needs to be a string" % default_value)
-        custom_property = CustomPropertyDefinition(
-            scope, name, property_type, default_value
-        )
+        custom_property = CustomPropertyDefinition(scope, name, property_type, default_value)
         self.custom_properties.append(custom_property)
         if scope == "node":
             Node.set_custom_properties_defs(custom_property)
@@ -1010,9 +982,7 @@ class Graph:
 
         graphml = ET.Element("graphml", xmlns="http://graphml.graphdrawing.org/xmlns")
         graphml.set("xmlns:java", "http://www.yworks.com/xml/yfiles-common/1.0/java")
-        graphml.set(
-            "xmlns:sys", "http://www.yworks.com/xml/yfiles-common/markup/primitives/2.0"
-        )
+        graphml.set("xmlns:sys", "http://www.yworks.com/xml/yfiles-common/markup/primitives/2.0")
         graphml.set("xmlns:x", "http://www.yworks.com/xml/yfiles-common/markup/2.0")
         graphml.set("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance")
         graphml.set("xmlns:y", "http://www.yworks.com/xml/graphml")
@@ -1059,9 +1029,7 @@ class Graph:
         edge_key.set("yfiles.type", "edgegraphics")
 
         # Graph node containing actual objects
-        graph = ET.SubElement(
-            graphml, "graph", edgedefault=self.directed, id=self.graph_id
-        )
+        graph = ET.SubElement(graphml, "graph", edgedefault=self.directed, id=self.graph_id)
 
         # Convert python graph objects into xml structure
         for node in self.nodes.values():
@@ -1107,10 +1075,13 @@ class Graph:
         else:
             return ET.tostring(self.graphml, encoding="UTF-8").decode()
 
+    # FIXME: CURRENTLY UNDER CONSTRUCTION
     def from_existing_graph(
-        self, file: str | Graph_file
-    ):  # FIXME: CURRENTLY UNDER CONSTRUCTION
-        """Parse xml of existing graph file into python"""
+        self,
+        file: str | Graph_file,
+    ):
+        """Parse xml of existing/stored graph file into python"""
+
         if isinstance(file, Graph_file):
             graph_file = file
         else:
@@ -1119,83 +1090,225 @@ class Graph:
         if not graph_file.file_exists:
             raise FileNotFoundError
 
-        try:
-            with open(graph_file.fullpath, "r") as graph_file:
-                graph_str = graph_file.read()
+        graph_str = xml_to_simple_string(graph_file.fullpath)
 
-        except Exception as E:
-            print(f"Error: {E}")
+        # XML parsing
+        root = ET.fromstring(graph_str)
 
-        else:
-            # Preprocessing of file for ease of parsing
-            graph_str = graph_str.replace("\n", " ")  # line returns
-            graph_str = graph_str.replace("\r", " ")  # line returns
-            graph_str = graph_str.replace("\t", " ")  # tabs
-            graph_str = re.sub("<graphml .*?>", "<graphml>", graph_str)  # unneeded schema
-            graph_str = graph_str.replace("> <", "><")  # empty text
-            graph_str = graph_str.replace("y:", "")  # unneeded namespace prefix
-            graph_str = re.sub(" {1,}", " ", graph_str)  # reducing redundant spaces
-            # print(graph_str) # debug
+        all_keys = root.findall("key")
+        key_dict = dict()
+        for a_key in all_keys:
+            sub_key_dict = dict()
 
-            root = ET.fromstring(graph_str)
-            graph_root = root.find("graph")
+            key_id = a_key.attrib.get("id")
+            # sub_key_dict["label"] = a_key.attrib.get("for")
+            sub_key_dict["attr"] = a_key.attrib.get("attr.name")
+            # sub_key_dict["label"] = a_key.attrib.get("type")
+            key_dict[key_id] = sub_key_dict
 
-            graph_dir = graph_root.get("edgedefault")
-            graph_id = graph_root.get("id")
+        # Get graph node
+        graph_root = root.find("graph")
 
-            new_graph = Graph(directed=graph_dir, graph_id=graph_id)
+        # get major graph info
+        graph_dir = graph_root.get("edgedefault")
+        graph_id = graph_root.get("id")
 
-            # def recursive_node_extraction(node):
-            #     pass
+        # instantiate graph object
+        new_graph = Graph(directed=graph_dir, graph_id=graph_id)
 
-            # groups and nodes - first establish objects
-            for node in graph_root.findall("node"):
-                # normal nodes
-                if not "yfiles.foldertype" in node.attrib:
-                    node_init_dict = dict()
+        # Parse graph
 
-                    node_init_dict["node_name"] = node.attrib.get("id")
-                    data = node[0]  # FIXME: not robust :  url/descr/custom_prop
-                    shape = data[0]
-                    node_init_dict["node_type"] = shape.tag
+        def is_group_node(node):
+            return "foldertype" in node.attrib
 
-                    geom = shape.find("Geometry")
-                    node_init_dict["height"] = geom.attrib["height"]
-                    node_init_dict["width"] = geom.attrib["width"]
-                    node_init_dict["x"] = geom.attrib["x"]
-                    node_init_dict["y"] = geom.attrib["y"]
+        # groups and nodes - first establish objects
+        for node in graph_root.findall("node"):
+            # normal nodes
+            if not is_group_node(node):
+                node_init_dict = dict()
 
-                    fill = shape.find("Fill")
-                    node_init_dict["shape_fill"] = fill.attrib["color"]
-                    node_init_dict["transparent"] = fill.attrib["transparent"]
+                # <node id="n1">
+                node_init_dict["node_name"] = node.attrib.get("id")
 
-                    border_style = shape.find("BorderStyle")
-                    node_init_dict["border_color"] = border_style.attrib["color"]
-                    node_init_dict["border_type"] = border_style.attrib["type"]
-                    node_init_dict["border_width"] = border_style.attrib["width"]
+                # <data key="d5">
+                data = node[0]  # TODO: not robust :  url/descr/custom_prop
 
-                    node_label = shape.find("NodeLabel")
-                    node_init_dict["label"] = node_label.text
+                # <ShapeNode>
+                shape = data[0]
+                node_init_dict["node_type"] = shape.tag
 
-                    shape_sub = shape.find("Shape")
-                    if shape_sub:
-                        node_init_dict["shape"] = shape_sub.attrib["type"]
+                """
+                <NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog"
+                    fontSize="12" fontStyle="plain" hasBackgroundColor="false"
+                    hasLineColor="false" height="18.701171875" horizontalTextPosition="center"
+                    iconTextGap="4" modelName="internal" modelPosition="c" textColor="#000000"
+                    verticalTextPosition="center" visible="true" width="10.673828125"
+                    x="9.6630859375" xml:space="preserve" y="5.6494140625">b</NodeLabel>"""
+                node_label = shape.find("NodeLabel")
+                node_init_dict["label"] = node_label.text
+                # TODO: PORT REST OF NODELABEL
 
-                    uml = shape.find("UML")
-                    if uml:
-                        node_init_dict["shape"] = uml.attrib["AttributeLabel"]
-                    # TODO: THERE IS FURTHER DETAIL TO PARSE HERE under uml
+                # <Fill color="#FFCC00" transparent="false" />
+                fill = shape.find("Fill")
+                node_init_dict["shape_fill"] = fill.attrib["color"]
+                node_init_dict["transparent"] = fill.attrib["transparent"]
 
-                    # create node
-                    new_graph.add_node(**node_init_dict)
+                # <BorderStyle color="#000000" type="line" width="1.0" />
+                border_style = shape.find("BorderStyle")
+                node_init_dict["border_color"] = border_style.attrib["color"]
+                node_init_dict["border_type"] = border_style.attrib["type"]
+                node_init_dict["border_width"] = border_style.attrib["width"]
 
-                # group nodes
-                else:
-                    pass
+                # <Shape type="rectangle" />
+                shape_sub = shape.find("Shape")
+                if shape_sub:
+                    node_init_dict["shape"] = shape_sub.attrib["type"]
+
+                uml = shape.find("UML")
+                if uml:
+                    node_init_dict["shape"] = uml.attrib["AttributeLabel"]
+                # TODO: THERE IS FURTHER DETAIL TO PARSE HERE under uml
+
+                # Removing empty items
+                node_init_dict = {key: value for (key, value) in node_init_dict.items() if value is not None}
+                # create node
+                new_graph.add_node(**node_init_dict)
+
+            # group nodes
+            # <node id="n2" yfiles.foldertype="group">
+            elif is_group_node(node):
+                group_init_dict = dict()
+
+                # <node id="n1">
+                group_init_dict["group_id"] = node.attrib.get("id")
+
+                data_nodes = node.findall("data")
+                for data_node in data_nodes:
+                    proxy = data_node.find("ProxyAutoBoundsNode")
+                    if proxy:
+                        realizer = proxy.find("Realizers")
+
+                        group_nodes = realizer.findall("GroupNode")
+
+                        for group_node in group_nodes:
+                            geom_node = group_node.find("Geometry")
+                            group_init_dict["height"] = geom_node.attrib.get("height")
+                            group_init_dict["width"] = geom_node.attrib.get("width")
+                            group_init_dict["x"] = geom_node.attrib.get("x")
+                            group_init_dict["y"] = geom_node.attrib.get("y")
+
+                            fill_node = group_node.find("Fill")
+                            group_init_dict["fill"] = fill_node.attrib.get("color")
+                            group_init_dict["transparent"] = fill_node.attrib.get("transparent")
+
+                            borderstyle_node = group_node.find("BorderStyle")
+                            group_init_dict["color"] = borderstyle_node.attrib.get("color")
+                            group_init_dict["type"] = borderstyle_node.attrib.get("type")
+                            group_init_dict["width"] = borderstyle_node.attrib.get("width")
+
+                            borderstyle_node = group_node.find("NodeLabel")
+                            group_init_dict["label"] = borderstyle_node.text
+                            group_init_dict["color"] = borderstyle_node.attrib.get("fontFamily")
+                            group_init_dict["type"] = borderstyle_node.attrib.get("fontSize")
+                            group_init_dict["width"] = borderstyle_node.attrib.get("underlinedText")
+                            group_init_dict["width"] = borderstyle_node.attrib.get("fontStyle")
+                            group_init_dict["width"] = borderstyle_node.attrib.get("alignment")
+
+                            group_shape_node = group_node.find("Shape")
+                            group_init_dict["shape"] = group_shape_node.attrib.get("type")
+
+                            group_state_node = group_node.find("State")
+                            group_init_dict["closed"] = group_state_node.attrib.get("closed")
+                            # group_init_dict["aaa"] = group_state_node.attrib.get("closedHeight")
+                            # group_init_dict["aaaa"] = group_state_node.attrib.get("closedWidth")
+                            # group_init_dict["aaaa"] = group_state_node.attrib.get("innerGraphDisplayEnabled")
+
+                            # TODO: GATHER THE MULTIPLE GROUP NODES
+
+                            break
+
+                    else:
+                        info = data_node.text
+                        if info is not None:
+                            info = re.sub(r"<!\[CDATA\[", "", info)  # unneeded schema
+                            info = re.sub(r"\]\]>", "", info)  # unneeded schema
+                            print("info:", info)
+
+                            the_key = data_node.attrib.get("key")
+
+                            info_type = key_dict[the_key]["attr"]
+                            if info_type in ["url", "description"]:
+                                group_init_dict[info_type] = info
+
+                    # Removing empty items
+                    group_init_dict = {key: value for (key, value) in group_init_dict.items() if value is not None}
+                new_graph.add_group(**group_init_dict)
+
+            else:
+                raise NotImplementedError
 
             # edges then establish connections
-            for graph_node in graph_root.findall("edge"):
-                print(graph_node.tag, graph_node.attrib)
+            for edge_node in graph_root.findall("edge"):
+                edge_init_dict = dict()
+
+                # <node id="n1">
+                edge_init_dict["edge_id"] = edge_node.attrib.get(
+                    "id"
+                )  # FIXME: THIS LIKELY NEEDS HELP - GROUP IDS FROM YED PRODUCED FILES LIKE n2::n1
+                edge_init_dict["node1_name"] = edge_node.attrib.get("source")
+                edge_init_dict["node2_name"] = edge_node.attrib.get("target")
+
+                # <data key="d5">
+                data_nodes = edge_node.findall("data")
+                for data_node in data_nodes:
+                    polylineedge = data_node.find("PolyLineEdge")
+
+                    if polylineedge:
+                        # TODO: ADD POSITION MANAGEMENT
+                        # path_node = polylineedge.find("Path")
+                        # edge_init_dict["label"] = path_node.attrib.get("sx")
+                        # edge_init_dict["label"] = path_node.attrib.get("sy")
+                        # edge_init_dict["label"] = path_node.attrib.get("tx")
+                        # edge_init_dict["label"] = path_node.attrib.get("ty")
+
+                        linestyle_node = polylineedge.find("LineStyle")
+                        edge_init_dict["color"] = linestyle_node.attrib.get("color")
+                        edge_init_dict["line_type"] = linestyle_node.attrib.get("type")
+                        edge_init_dict["width"] = linestyle_node.attrib.get("width")
+
+                        arrows_node = polylineedge.find("Arrows")
+                        edge_init_dict["arrowfoot"] = arrows_node.attrib.get("source")
+                        edge_init_dict["arrowhead"] = arrows_node.attrib.get("target")
+
+                        edgelabel_node = polylineedge.find("EdgeLabel")
+
+                        edge_init_dict["arrowfoot"] = edgelabel_node.attrib.get("source")
+                        edge_init_dict["arrowhead"] = edgelabel_node.attrib.get("target")
+
+                        edge_init_dict["label"] = edgelabel_node.text
+
+                    else:
+                        info = data_node.text
+                        if info is not None:
+                            info = re.sub(r"<!\[CDATA\[", "", info)  # unneeded schema
+                            info = re.sub(r"\]\]>", "", info)  # unneeded schema
+                            print("info:", info)
+
+                            the_key = data_node.attrib.get("key")
+
+                            info_type = key_dict[the_key]["attr"]
+                            if info_type in ["url", "description"]:
+                                edge_init_dict[info_type] = info
+
+                # bendstyle_node = polylineedge.find("BendStyle")
+                # edge_init_dict["smoothed"] = linestyle_node.attrib.get("smoothed") # FIXME
+
+                # TODO:
+                #   CUSTOM PROPERTIES
+
+                # Removing empty items
+                edge_init_dict = {key: value for (key, value) in edge_init_dict.items() if value is not None}
+                new_graph.add_edge(**edge_init_dict)
 
             return new_graph
 
@@ -1248,16 +1361,12 @@ def get_yed_graph_window_id(file: Graph_file | None):
     window = None
     if not file:
         potential_windows = [title.lower for title in gw.getAllTitles()]
-        search_name = [title for title in potential_windows if title.endswith(APP_NAME)][
-            0
-        ]
+        search_name = [title for title in potential_windows if title.endswith(APP_NAME)][0]
     else:
         search_name = file.window_search_name
 
     if search_name:
-        window = gw.getWindowsWithTitle(
-            search_name
-        )  # FIXME: gives false positive w files of same name / diff path.
+        window = gw.getWindowsWithTitle(search_name)  # FIXME: gives false positive w files of same name / diff path.
     return window[0] if window else None
 
 
@@ -1285,3 +1394,28 @@ def start_yed() -> None:
     if is_yed_findable():
         if not is_yed_open():
             subprocess.run(PROGRAM_NAME)
+
+
+# Utilities
+def xml_to_simple_string(file_path) -> str:
+    try:
+        with open(file_path, "r") as graph_file:
+            graph_str = graph_file.read()
+
+    except Exception as E:
+        print(f"Error: {E}")
+
+    else:
+        # Preprocessing of file for ease of parsing
+        graph_str = graph_str.replace("\n", " ")  # line returns
+        graph_str = graph_str.replace("\r", " ")  # line returns
+        graph_str = graph_str.replace("\t", " ")  # tabs
+        graph_str = re.sub("<graphml .*?>", "<graphml>", graph_str)  # unneeded schema
+        graph_str = graph_str.replace("> <", "><")  # empty text
+        graph_str = graph_str.replace("y:", "")  # unneeded namespace prefix
+        graph_str = graph_str.replace("xml:", "")  # unneeded namespace prefix
+        graph_str = graph_str.replace("yfiles.", "")  # unneeded namespace prefix
+        graph_str = re.sub(" {1,}", " ", graph_str)  # reducing redundant spaces
+        # print(graph_str) # debug
+
+    return graph_str
