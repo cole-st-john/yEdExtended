@@ -1,0 +1,87 @@
+<?xml version="1.0" ?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:java="http://www.yworks.com/xml/yfiles-common/1.0/java" xmlns:sys="http://www.yworks.com/xml/yfiles-common/markup/primitives/2.0" xmlns:x="http://www.yworks.com/xml/yfiles-common/markup/2.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:y="http://www.yworks.com/xml/graphml" xmlns:yed="http://www.yworks.com/xml/yed/3" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://www.yworks.com/xml/schema/graphml/1.1/ygraphml.xsd">
+	<key id="data_node" for="node" yfiles.type="nodegraphics"/>
+	<key id="url_node" for="node" attr.name="url" attr.type="string"/>
+	<key id="description_node" for="node" attr.name="description" attr.type="string"/>
+	<key id="url_edge" for="edge" attr.name="url" attr.type="string"/>
+	<key id="description_edge" for="edge" attr.name="description" attr.type="string"/>
+	<key id="data_edge" for="edge" yfiles.type="edgegraphics"/>
+	<graph edgedefault="directed" id="G">
+		<node id="a">
+			<data key="data_node">
+				<y:ShapeNode>
+					<y:Fill color="#FFCC00" transparent="false"/>
+					<y:BorderStyle color="#000000" type="line" width="1.0"/>
+					<y:NodeLabel horizontalTextPosition="center" verticalTextPosition="center" alignment="center" fontStyle="plain" fontFamily="Dialog" iconTextGap="4" fontSize="12" textColor="#000000" visible="true" underlinedText="false" hasBackgroundColor="false" width="55.708984375" height="18.1328125" modelName="internal" modelPosition="c">a</y:NodeLabel>
+					<y:Shape type="rectangle"/>
+				</y:ShapeNode>
+			</data>
+		</node>
+		<node id="b">
+			<data key="data_node">
+				<y:ShapeNode>
+					<y:Fill color="#FFCC00" transparent="false"/>
+					<y:BorderStyle color="#000000" type="line" width="1.0"/>
+					<y:NodeLabel horizontalTextPosition="center" verticalTextPosition="center" alignment="center" fontStyle="plain" fontFamily="Dialog" iconTextGap="4" fontSize="12" textColor="#000000" visible="true" underlinedText="false" hasBackgroundColor="false" width="55.708984375" height="18.1328125" modelName="internal" modelPosition="c">b</y:NodeLabel>
+					<y:Shape type="rectangle"/>
+				</y:ShapeNode>
+			</data>
+		</node>
+		<node id="group 1" yfiles.foldertype="group">
+			<data key="data_node">
+				<y:ProxyAutoBoundsNode>
+					<y:Realizers active="0">
+						<y:GroupNode>
+							<y:Fill color="#FFCC00" transparent="false"/>
+							<y:BorderStyle color="#000000" type="line" width="1.0"/>
+							<y:NodeLabel modelName="internal" modelPosition="t" fontFamily="Dialog" fontSize="12" underlinedText="false" fontStyle="plain" alignment="center">group 1</y:NodeLabel>
+							<y:Shape type="rectangle"/>
+							<y:State closed="false"/>
+						</y:GroupNode>
+					</y:Realizers>
+				</y:ProxyAutoBoundsNode>
+			</data>
+			<graph edgedefault="directed" id="group 1">
+				<node id="c">
+					<data key="data_node">
+						<y:ShapeNode>
+							<y:Fill color="#FFCC00" transparent="false"/>
+							<y:BorderStyle color="#000000" type="line" width="1.0"/>
+							<y:NodeLabel horizontalTextPosition="center" verticalTextPosition="center" alignment="center" fontStyle="plain" fontFamily="Dialog" iconTextGap="4" fontSize="12" textColor="#000000" visible="true" underlinedText="false" hasBackgroundColor="false" width="55.708984375" height="18.1328125" modelName="internal" modelPosition="c">c</y:NodeLabel>
+							<y:Shape type="rectangle"/>
+						</y:ShapeNode>
+					</data>
+				</node>
+				<node id="d">
+					<data key="data_node">
+						<y:ShapeNode>
+							<y:Fill color="#FFCC00" transparent="false"/>
+							<y:BorderStyle color="#000000" type="line" width="1.0"/>
+							<y:NodeLabel horizontalTextPosition="center" verticalTextPosition="center" alignment="center" fontStyle="plain" fontFamily="Dialog" iconTextGap="4" fontSize="12" textColor="#000000" visible="true" underlinedText="false" hasBackgroundColor="false" width="55.708984375" height="18.1328125" modelName="internal" modelPosition="c">d</y:NodeLabel>
+							<y:Shape type="rectangle"/>
+						</y:ShapeNode>
+					</data>
+				</node>
+				<edge id="2" source="c" target="d">
+					<data key="data_edge">
+						<y:PolyLineEdge>
+							<y:Arrows source="none" target="standard"/>
+							<y:LineStyle color="#000000" type="line" width="1.0"/>
+						</y:PolyLineEdge>
+					</data>
+				</edge>
+			</graph>
+		</node>
+		<edge id="1" source="a" target="b">
+			<data key="data_edge">
+				<y:PolyLineEdge>
+					<y:Arrows source="none" target="standard"/>
+					<y:LineStyle color="#000000" type="line" width="1.0"/>
+					<y:EdgeLabel horizontalTextPosition="center" verticalTextPosition="center" alignment="center" fontStyle="plain" fontFamily="Dialog" iconTextGap="4" fontSize="12" textColor="#000000" visible="true" underlinedText="false" hasBackgroundColor="false" width="55.708984375" height="18.1328125" borderColor="" backgroundColor="" modelName="centered" modelPosition="center">a-&gt;b</y:EdgeLabel>
+				</y:PolyLineEdge>
+			</data>
+			<data key="url_edge">www.edge.com/a-b</data>
+			<data key="description_edge">a-b edge</data>
+		</edge>
+	</graph>
+</graphml>

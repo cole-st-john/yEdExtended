@@ -62,7 +62,9 @@ italy.add_edge(
 )
 
 # Write Graph
-graph1.persist_graph("demo-url-description-groups-nodes-edges.graphml", pretty_print=True)
+graph1.persist_graph(
+    "demo-url-description-groups-nodes-edges.graphml", pretty_print=True
+).open_with_yed()
 
 print(40 * "=")
 print("""
