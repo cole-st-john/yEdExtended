@@ -1086,7 +1086,6 @@ class Graph:
             graph_file = file
         else:
             graph_file = Graph_file(file)
-
         if not graph_file.file_exists:
             raise FileNotFoundError
 
@@ -1104,7 +1103,7 @@ class Graph:
 
             key_id = a_key.attrib.get("id")
             # sub_key_dict["label"] = a_key.attrib.get("for")
-            sub_key_dict["attr"] = a_key.attrib.get("attr.name")
+            sub_key_dict["attr"] = a_key.attrib.get("attr.name", None)
             # sub_key_dict["label"] = a_key.attrib.get("type")
             key_dict[key_id] = sub_key_dict
 
@@ -1123,147 +1122,168 @@ class Graph:
         def is_group_node(node):
             return "foldertype" in node.attrib
 
-        # groups and nodes - first establish objects
-        for node in graph_root.findall("node"):
-            # normal nodes
-            if not is_group_node(node):
-                node_init_dict = dict()
+        def process_node(parent, input_node):
+            current_level_nodes = input_node.findall("node")
+            current_level_edges = input_node.findall("edge")
 
-                # <node id="n1">
-                node_init_dict["node_name"] = node.attrib.get("id")
+            for node in current_level_nodes:
+                # normal nodes
+                if not is_group_node(node):
+                    node_init_dict = dict()
 
-                # <data key="d5">
-                data = node[0]  # TODO: not robust :  url/descr/custom_prop
+                    # <node id="n1">
+                    node_init_dict["node_name"] = node.attrib.get("id", None)
 
-                # <ShapeNode>
-                shape = data[0]
-                node_init_dict["node_type"] = shape.tag
+                    # <data key="d5">
+                    data = node[0]  # TODO: not robust :  url/descr/custom_prop
 
-                """
-                <NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog"
-                    fontSize="12" fontStyle="plain" hasBackgroundColor="false"
-                    hasLineColor="false" height="18.701171875" horizontalTextPosition="center"
-                    iconTextGap="4" modelName="internal" modelPosition="c" textColor="#000000"
-                    verticalTextPosition="center" visible="true" width="10.673828125"
-                    x="9.6630859375" xml:space="preserve" y="5.6494140625">b</NodeLabel>"""
-                node_label = shape.find("NodeLabel")
-                node_init_dict["label"] = node_label.text
-                # TODO: PORT REST OF NODELABEL
+                    # <ShapeNode>
+                    shape = data[0]
+                    if shape:
+                        node_init_dict["node_type"] = shape.tag
 
-                # <Fill color="#FFCC00" transparent="false" />
-                fill = shape.find("Fill")
-                node_init_dict["shape_fill"] = fill.attrib["color"]
-                node_init_dict["transparent"] = fill.attrib["transparent"]
+                    """
+                    <NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog"
+                        fontSize="12" fontStyle="plain" hasBackgroundColor="false"
+                        hasLineColor="false" height="18.701171875" horizontalTextPosition="center"
+                        iconTextGap="4" modelName="internal" modelPosition="c" textColor="#000000"
+                        verticalTextPosition="center" visible="true" width="10.673828125"
+                        x="9.6630859375" xml:space="preserve" y="5.6494140625">b</NodeLabel>"""
+                    node_label = shape.find("NodeLabel")
+                    if node_label:
+                        node_init_dict["label"] = node_label.text
+                        # TODO: PORT REST OF NODELABEL
 
-                # <BorderStyle color="#000000" type="line" width="1.0" />
-                border_style = shape.find("BorderStyle")
-                node_init_dict["border_color"] = border_style.attrib["color"]
-                node_init_dict["border_type"] = border_style.attrib["type"]
-                node_init_dict["border_width"] = border_style.attrib["width"]
+                    # <Fill color="#FFCC00" transparent="false" />
+                    fill = shape.find("Fill")
+                    if fill:
+                        node_init_dict["shape_fill"] = fill.get("color")
+                        node_init_dict["transparent"] = fill.get("transparent")
 
-                # <Shape type="rectangle" />
-                shape_sub = shape.find("Shape")
-                if shape_sub:
-                    node_init_dict["shape"] = shape_sub.attrib["type"]
+                    # <BorderStyle color="#000000" type="line" width="1.0" />
+                    border_style = shape.find("BorderStyle")
+                    if border_style:
+                        node_init_dict["border_color"] = border_style.get("color")
+                        node_init_dict["border_type"] = border_style.get("type")
+                        node_init_dict["border_width"] = border_style.get("width")
 
-                uml = shape.find("UML")
-                if uml:
-                    node_init_dict["shape"] = uml.attrib["AttributeLabel"]
-                # TODO: THERE IS FURTHER DETAIL TO PARSE HERE under uml
+                    # <Shape type="rectangle" />
+                    shape_sub = shape.find("Shape")
+                    if shape_sub:
+                        node_init_dict["shape"] = shape_sub.get("type")
 
-                # Removing empty items
-                node_init_dict = {key: value for (key, value) in node_init_dict.items() if value is not None}
-                # create node
-                new_graph.add_node(**node_init_dict)
+                    uml = shape.find("UML")
+                    if uml:
+                        node_init_dict["shape"] = uml.get("AttributeLabel")
+                    # TODO: THERE IS FURTHER DETAIL TO PARSE HERE under uml
 
-            # group nodes
-            # <node id="n2" yfiles.foldertype="group">
-            elif is_group_node(node):
-                group_init_dict = dict()
+                    # Removing empty items
+                    node_init_dict = {key: value for (key, value) in node_init_dict.items() if value is not None}
+                    # create node
+                    parent.add_node(**node_init_dict)
 
-                # <node id="n1">
-                group_init_dict["group_id"] = node.attrib.get("id")
+                # group nodes
+                # <node id="n2" yfiles.foldertype="group">
+                elif is_group_node(node):
+                    group_init_dict = dict()
 
-                # Group - Graph node # TODO:
-                # graph_node = node.find("graph")
-                # parse_graph_node(graph_node)
+                    # <node id="n1">
+                    group_init_dict["group_id"] = node.attrib.get("id", None)
 
-                # Actual Group Data
-                data_nodes = node.findall("data")
-                for data_node in data_nodes:
-                    proxy = data_node.find("ProxyAutoBoundsNode")
-                    if proxy:
-                        realizer = proxy.find("Realizers")
+                    # Actual Group Data ===================================
+                    data_nodes = node.findall("data")
+                    for data_node in data_nodes:
+                        proxy = data_node.find("ProxyAutoBoundsNode")
+                        if proxy:
+                            realizer = proxy.find("Realizers")
 
-                        group_nodes = realizer.findall("GroupNode")  # TODO: When are there multiple?
+                            group_nodes = realizer.findall("GroupNode")  # TODO: When are there multiple?
 
-                        for group_node in group_nodes:
-                            geom_node = group_node.find("Geometry")
-                            group_init_dict["height"] = geom_node.attrib.get("height")
-                            group_init_dict["width"] = geom_node.attrib.get("width")
-                            group_init_dict["x"] = geom_node.attrib.get("x")
-                            group_init_dict["y"] = geom_node.attrib.get("y")
+                            for group_node in group_nodes:
+                                geom_node = group_node.find("Geometry")
+                                if geom_node:
+                                    group_init_dict["height"] = geom_node.attrib.get("height", None)
+                                    group_init_dict["width"] = geom_node.attrib.get("width", None)
+                                    group_init_dict["x"] = geom_node.attrib.get("x", None)
+                                    group_init_dict["y"] = geom_node.attrib.get("y", None)
 
-                            fill_node = group_node.find("Fill")
-                            group_init_dict["fill"] = fill_node.attrib.get("color")
-                            group_init_dict["transparent"] = fill_node.attrib.get("transparent")
+                                fill_node = group_node.find("Fill")
+                                if fill_node:
+                                    group_init_dict["fill"] = fill_node.attrib.get("color", None)
+                                    group_init_dict["transparent"] = fill_node.attrib.get("transparent", None)
 
-                            borderstyle_node = group_node.find("BorderStyle")
-                            group_init_dict["color"] = borderstyle_node.attrib.get("color")
-                            group_init_dict["type"] = borderstyle_node.attrib.get("type")
-                            group_init_dict["width"] = borderstyle_node.attrib.get("width")
+                                borderstyle_node = group_node.find("BorderStyle")
+                                if borderstyle_node:
+                                    group_init_dict["color"] = borderstyle_node.attrib.get("color", None)
+                                    group_init_dict["type"] = borderstyle_node.attrib.get("type", None)
+                                    group_init_dict["width"] = borderstyle_node.attrib.get("width", None)
 
-                            borderstyle_node = group_node.find("NodeLabel")
-                            group_init_dict["label"] = borderstyle_node.text
-                            group_init_dict["color"] = borderstyle_node.attrib.get("fontFamily")
-                            group_init_dict["type"] = borderstyle_node.attrib.get("fontSize")
-                            group_init_dict["width"] = borderstyle_node.attrib.get("underlinedText")
-                            group_init_dict["width"] = borderstyle_node.attrib.get("fontStyle")
-                            group_init_dict["width"] = borderstyle_node.attrib.get("alignment")
+                                nodelabel_node = group_node.find("NodeLabel")
+                                if nodelabel_node:
+                                    group_init_dict["label"] = nodelabel_node.text
+                                    group_init_dict["color"] = nodelabel_node.attrib.get("fontFamily", None)
+                                    group_init_dict["type"] = nodelabel_node.attrib.get("fontSize", None)
+                                    group_init_dict["width"] = nodelabel_node.attrib.get("underlinedText", None)
+                                    group_init_dict["width"] = nodelabel_node.attrib.get("fontStyle", None)
+                                    group_init_dict["width"] = nodelabel_node.attrib.get("alignment", None)
 
-                            group_shape_node = group_node.find("Shape")
-                            group_init_dict["shape"] = group_shape_node.attrib.get("type")
+                                group_shape_node = group_node.find("Shape")
+                                if group_shape_node:
+                                    group_init_dict["shape"] = group_shape_node.attrib.get("type", None)
 
-                            group_state_node = group_node.find("State")
-                            group_init_dict["closed"] = group_state_node.attrib.get("closed")
-                            # group_init_dict["aaa"] = group_state_node.attrib.get("closedHeight")
-                            # group_init_dict["aaaa"] = group_state_node.attrib.get("closedWidth")
-                            # group_init_dict["aaaa"] = group_state_node.attrib.get("innerGraphDisplayEnabled")
+                                group_state_node = group_node.find("State")
+                                if group_state_node:
+                                    group_init_dict["closed"] = group_state_node.attrib.get("closed", None)
+                                    # group_init_dict["aaa"] = group_state_node.attrib.get("closedHeight",None)
+                                    # group_init_dict["aaaa"] = group_state_node.attrib.get("closedWidth",None)
+                                    # group_init_dict["aaaa"] = group_state_node.attrib.get("innerGraphDisplayEnabled",None)
 
-                            # TODO: GATHER THE MULTIPLE GROUP NODES
+                                # TODO: GATHER THE MULTIPLE GROUP NODES
 
-                            break
+                                break
 
-                    else:
-                        info = data_node.text
-                        if info is not None:
-                            info = re.sub(r"<!\[CDATA\[", "", info)  # unneeded schema
-                            info = re.sub(r"\]\]>", "", info)  # unneeded schema
-                            print("info:", info)
+                        else:
+                            info = data_node.text
+                            if info is not None:
+                                info = re.sub(r"<!\[CDATA\[", "", info)  # unneeded schema
+                                info = re.sub(r"\]\]>", "", info)  # unneeded schema
+                                print("info:", info)
 
-                            the_key = data_node.attrib.get("key")
+                                the_key = data_node.attrib.get("key")
 
-                            info_type = key_dict[the_key]["attr"]
-                            if info_type in ["url", "description"]:
-                                group_init_dict[info_type] = info
+                                info_type = key_dict[the_key]["attr"]
+                                if info_type in ["url", "description"]:
+                                    group_init_dict[info_type] = info
+
+                    # Group - Graph node # TODO:
+                    sub_graph_node = node.find("graph")
+                    # graph_id = sub_graph_node.get("id")
 
                     # Removing empty items
                     group_init_dict = {key: value for (key, value) in group_init_dict.items() if value is not None}
-                new_graph.add_group(**group_init_dict)
 
-            else:
-                raise NotImplementedError
+                    # Creating new group
+                    new_group = parent.add_group(**group_init_dict)
+
+                    # Recursive processing
+                    process_node(parent=new_group, input_node=sub_graph_node)
+
+                    # parse_graph_node(graph_node)
+
+                # unknown node type
+                else:
+                    raise NotImplementedError
 
             # edges then establish connections
-            for edge_node in graph_root.findall("edge"):
+            for edge_node in current_level_edges:
                 edge_init_dict = dict()
 
                 # <node id="n1">
                 edge_init_dict["edge_id"] = edge_node.attrib.get(
-                    "id"
+                    "id", None
                 )  # FIXME: THIS LIKELY NEEDS HELP - GROUP IDS FROM YED PRODUCED FILES LIKE n2::n1
-                edge_init_dict["node1_name"] = edge_node.attrib.get("source")
-                edge_init_dict["node2_name"] = edge_node.attrib.get("target")
+                edge_init_dict["node1_name"] = edge_node.attrib.get("source", None)
+                edge_init_dict["node2_name"] = edge_node.attrib.get("target", None)
 
                 # <data key="d5">
                 data_nodes = edge_node.findall("data")
@@ -1273,26 +1293,28 @@ class Graph:
                     if polylineedge:
                         # TODO: ADD POSITION MANAGEMENT
                         # path_node = polylineedge.find("Path")
-                        # edge_init_dict["label"] = path_node.attrib.get("sx")
-                        # edge_init_dict["label"] = path_node.attrib.get("sy")
-                        # edge_init_dict["label"] = path_node.attrib.get("tx")
-                        # edge_init_dict["label"] = path_node.attrib.get("ty")
+                        # if path_node:
+                        #   edge_init_dict["label"] = path_node.attrib.get("sx")
+                        #   edge_init_dict["label"] = path_node.attrib.get("sy")
+                        #   edge_init_dict["label"] = path_node.attrib.get("tx")
+                        #   edge_init_dict["label"] = path_node.attrib.get("ty")
 
                         linestyle_node = polylineedge.find("LineStyle")
-                        edge_init_dict["color"] = linestyle_node.attrib.get("color")
-                        edge_init_dict["line_type"] = linestyle_node.attrib.get("type")
-                        edge_init_dict["width"] = linestyle_node.attrib.get("width")
+                        if linestyle_node:
+                            edge_init_dict["color"] = linestyle_node.attrib.get("color", None)
+                            edge_init_dict["line_type"] = linestyle_node.attrib.get("type", None)
+                            edge_init_dict["width"] = linestyle_node.attrib.get("width", None)
 
                         arrows_node = polylineedge.find("Arrows")
-                        edge_init_dict["arrowfoot"] = arrows_node.attrib.get("source")
-                        edge_init_dict["arrowhead"] = arrows_node.attrib.get("target")
+                        if arrows_node:
+                            edge_init_dict["arrowfoot"] = arrows_node.attrib.get("source", None)
+                            edge_init_dict["arrowhead"] = arrows_node.attrib.get("target", None)
 
                         edgelabel_node = polylineedge.find("EdgeLabel")
-
-                        edge_init_dict["arrowfoot"] = edgelabel_node.attrib.get("source")
-                        edge_init_dict["arrowhead"] = edgelabel_node.attrib.get("target")
-
-                        edge_init_dict["label"] = edgelabel_node.text
+                        if edgelabel_node:
+                            edge_init_dict["label"] = edgelabel_node.text
+                            edge_init_dict["arrowfoot"] = edgelabel_node.attrib.get("source", None)
+                            edge_init_dict["arrowhead"] = edgelabel_node.attrib.get("target", None)
 
                     else:
                         info = data_node.text
@@ -1315,9 +1337,11 @@ class Graph:
 
                 # Removing empty items
                 edge_init_dict = {key: value for (key, value) in edge_init_dict.items() if value is not None}
-                new_graph.add_edge(**edge_init_dict)
+                parent.add_edge(**edge_init_dict)
 
-            return new_graph
+        process_node(parent=new_graph, input_node=graph_root)
+
+        return new_graph
 
     # def display(self): #TODO: ADD THIS
     #     """Displaying groups, nodes, edges in list format"""
