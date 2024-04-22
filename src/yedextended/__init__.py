@@ -107,9 +107,9 @@ class Graph_file:
             temp_name += self.EXTENSION
         return temp_name
 
-    def open_with_yed(self):
+    def open_with_yed(self, force=False):
         print("opening...")
-        open_yed_file(self)
+        open_yed_file(self, force)
 
 
 class Label:
@@ -464,7 +464,7 @@ class Group:
         return node
 
     def add_group(self, group_id, **kwargs):
-        """Adding a group under same parent group underwhich the current group is contained."""
+        """Adding a group within current group object (and same parent graph)."""
         if group_id in self.parent_graph.existing_entities:
             raise RuntimeWarning("Node %s already exists" % group_id)
 
@@ -500,6 +500,7 @@ class Group:
 
     def convert_to_xml(self):
         """Converting graph object to graphml xml object"""
+
         node = ET.Element("node", id=self.group_id)
         node.set("yfiles.foldertype", "group")
         data = ET.SubElement(node, "data", key="data_node")
@@ -992,6 +993,7 @@ class Graph:
             "http://graphml.graphdrawing.org/xmlns http://www.yworks.com/xml/schema/graphml/1.1/ygraphml.xsd",
         )
 
+        # Adding some implementation specific keys for identifying urls, descriptions
         node_key = ET.SubElement(graphml, "key", id="data_node")
         node_key.set("for", "node")
         node_key.set("yfiles.type", "nodegraphics")
@@ -1076,12 +1078,10 @@ class Graph:
             return ET.tostring(self.graphml, encoding="UTF-8").decode()
 
     # FIXME: CURRENTLY UNDER CONSTRUCTION
-    def from_existing_graph(
-        self,
-        file: str | Graph_file,
-    ):
+    def from_existing_graph(self, file: str | Graph_file):
         """Parse xml of existing/stored graph file into python"""
 
+        # Manage file input ==============================
         if isinstance(file, Graph_file):
             graph_file = file
         else:
@@ -1090,11 +1090,13 @@ class Graph:
         if not graph_file.file_exists:
             raise FileNotFoundError
 
+        # Simplify input into string ==============================
         graph_str = xml_to_simple_string(graph_file.fullpath)
 
-        # XML parsing
+        # Begin XML parsing
         root = ET.fromstring(graph_str)
 
+        # Extract off key information==============================
         all_keys = root.findall("key")
         key_dict = dict()
         for a_key in all_keys:
@@ -1106,7 +1108,7 @@ class Graph:
             # sub_key_dict["label"] = a_key.attrib.get("type")
             key_dict[key_id] = sub_key_dict
 
-        # Get graph node
+        # Get major graph node
         graph_root = root.find("graph")
 
         # get major graph info
@@ -1182,13 +1184,18 @@ class Graph:
                 # <node id="n1">
                 group_init_dict["group_id"] = node.attrib.get("id")
 
+                # Group - Graph node # TODO:
+                # graph_node = node.find("graph")
+                # parse_graph_node(graph_node)
+
+                # Actual Group Data
                 data_nodes = node.findall("data")
                 for data_node in data_nodes:
                     proxy = data_node.find("ProxyAutoBoundsNode")
                     if proxy:
                         realizer = proxy.find("Realizers")
 
-                        group_nodes = realizer.findall("GroupNode")
+                        group_nodes = realizer.findall("GroupNode")  # TODO: When are there multiple?
 
                         for group_node in group_nodes:
                             geom_node = group_node.find("Geometry")
@@ -1339,6 +1346,15 @@ def get_yed_pid():
     return pid
 
 
+def get_yed_process():
+    process = None
+    for process_iter in psutil.process_iter(["name"]):
+        if process_iter.info["name"] == PROGRAM_NAME:
+            process = process_iter
+            break
+    return process
+
+
 def is_yed_open() -> bool:
     """Check whether yEd is currently open - windows, linux, os, etc."""
     return get_yed_pid() is not None
@@ -1376,8 +1392,16 @@ def is_yed_graph_open(file: Graph_file) -> bool:
     return window is not None
 
 
-def open_yed_file(file: Graph_file) -> None:
+def open_yed_file(file: Graph_file, force=False) -> None:
     """Opens yed file - also will start yed if not open."""
+    if force:
+        answer = msg.askokcancel(title="Force yEd App Close", message="Are you ok to force yEd closure?")
+        if not answer:
+            print("Exiting program")
+            exit()
+        process = get_yed_process()
+        if process:
+            process.kill()
     if not is_yed_graph_open(file):
         if platform.system() == "Darwin":  # macOS
             subprocess.call(("open", file.fullpath))
