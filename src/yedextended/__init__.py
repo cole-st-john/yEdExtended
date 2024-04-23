@@ -20,6 +20,7 @@ from xml.dom import minidom
 
 import psutil
 import pygetwindow as gw
+from openpyxl import Workbook
 
 PROGRAM_NAME = "yEd.exe"
 
@@ -1350,9 +1351,33 @@ class Graph:
 
         return new_graph
 
-    # def display(self): #TODO: ADD THIS
-    #     """Displaying groups, nodes, edges in list format"""
-    #     pass
+    def manage_graph_data_in_excel(self):  # TODO: UNDER CONSTRUCTION
+        """Displaying groups, nodes, edges in list format"""
+
+        # create workbook
+        excel_wb = Workbook()
+
+        # Get worksheet
+        excel_ws = excel_wb.active
+
+        # Inserting /organizing sheets
+        objects_ws = excel_wb.create_sheet("Objects_and_Groups", 0)
+        relations_ws = excel_wb.create_sheet("Relations", 1)
+        excel_wb.remove(excel_ws)
+
+        # potentially saving
+        excel_wb.save("test.xlsx")
+
+        # nodes and groups
+        # graph.existing_entities
+        # graph.edges
+
+        # gather nodes
+        # gather groups
+        # gather edges - node1 node2 label id
+
+        # replace vs
+        #     pass
 
 
 # App related functions -------------------------
