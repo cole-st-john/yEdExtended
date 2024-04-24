@@ -20,7 +20,7 @@ from xml.dom import minidom
 
 import psutil
 import pygetwindow as gw
-from openpyxl import Workbook
+import openpyxl as pyxl
 
 
 # Enumerated parameters / Constants
@@ -1079,7 +1079,6 @@ class Graph:
         else:
             return ET.tostring(self.graphml, encoding="UTF-8").decode()
 
-    # FIXME: CURRENTLY UNDER CONSTRUCTION
     def from_existing_graph(self, file: str | Graph_file):
         """Parse xml of existing/stored graph file into python"""
 
@@ -1147,6 +1146,7 @@ class Graph:
                             node_label = info_node.find("NodeLabel")
                             if node_label is not None:
                                 node_init_dict["label"] = node_label.text
+                                print("here")
                                 # TODO: PORT REST OF NODELABEL
 
                             # <Fill color="#FFCC00" transparent="false" />
@@ -1352,22 +1352,163 @@ class Graph:
 
         return new_graph
 
-    def manage_graph_data_in_excel(self):  # TODO: UNDER CONSTRUCTION
+    # TODO: UNDER CONSTRUCTION
+    def manage_graph_data_in_excel(self, type=None):
         """Displaying groups, nodes, edges in list format"""
 
-        # create workbook
-        excel_wb = Workbook()
+        TEMP_EXCEL_SHEET = "test.xlsx"
 
-        # Get worksheet
-        excel_ws = excel_wb.active
+        MANAGE_TYPES = {"obj_and_hierarchy", "object_data", "relations"}
+        type = type or "obj_and_hierarchy"  # default
+
+        # create workbook
+        excel_wb = pyxl.Workbook()
 
         # Inserting /organizing sheets
-        objects_ws = excel_wb.create_sheet("Objects_and_Groups", 0)
-        relations_ws = excel_wb.create_sheet("Relations", 1)
-        excel_wb.remove(excel_ws)
+        excel_ws = excel_wb.active
+
+        # Extract objects ============================================
+        all_obj = dict()
+        OBJECTS_WS_NAME = "Objects_and_Groups"
+        objects_ws = excel_wb.create_sheet(OBJECTS_WS_NAME, 0)
+
+        # HEADER
+        objects_ws.cell(
+            row=1, column=1, value="FORMAT -> LABEL | ID (INDENTATION OF INFO MEANS BELONGING TO GROUP ABOVE.)"
+        )
+
+        row = 2
+
+        def object_extract(self, input_node, indent_level):
+            nonlocal row
+            nonlocal all_obj
+
+            sub_nodes = input_node.nodes
+            sub_groups = input_node.groups
+            sub_edges = input_node.edges
+
+            for node in sub_nodes.values():
+                id = node.node_name or ""
+                labels = getattr(node, "list_of_labels")
+                # desc = node.get(description, "")
+                # url = node.get(url, "")
+                if labels:
+                    label = labels[0]._text  # ASSUMPTION: that this would make sense for most graphs
+                else:
+                    label = ""
+
+                all_obj[id] = label
+
+                objects_ws.cell(row=row, column=indent_level, value=label)
+                objects_ws.cell(row=row, column=indent_level + 1, value=id)
+                row += 1
+
+            for group in sub_groups.values():
+                id = group.group_id or ""
+                label = getattr(group, "label", "")
+                objects_ws.cell(row=row, column=indent_level, value=label)
+                objects_ws.cell(row=row, column=indent_level + 1, value=id)
+                row += 1
+                print(id, label)
+
+                all_obj[id] = label
+                object_extract(self, group, indent_level=indent_level + 1)
+
+        object_extract(self, self, indent_level=1)
+
+        # Extract Relations =======================================================
+        if type == "relations":
+            RELATIONS_WS_NAME = "Relations"
+            relations_ws = excel_wb.create_sheet(RELATIONS_WS_NAME, 1)
+            row = 2
+            col = 1
+            relations_ws.cell(
+                row=1, column=1, value="FORMAT -> NODE1 | NODE2 | EDGE_LABEL | EDGE_ID | GROUP_ID (OWNING EDGE)"
+            )
+            obj_values = list(all_obj.values())
+            dup_objects = list(filter(lambda x: True if obj_values.count(x) > 1 else False, obj_values))
+
+            def relations_extract(self, input_node):
+                nonlocal row
+
+                sub_groups = input_node.groups
+                sub_edges = input_node.edges
+
+                for edge in sub_edges.values():
+                    id = edge.edge_id or ""
+                    node1 = getattr(edge, "node1")
+                    node2 = getattr(edge, "node2")
+                    labels = getattr(edge, "list_of_labels")
+                    if labels:
+                        label = labels[0]._text  # ASSUMPTION: that this would make sense for most graphs
+                    else:
+                        label = ""
+
+                    def deduplicate_obj(id):
+                        name = all_obj[id]
+                        if name in dup_objects:
+                            return id + "##" + name
+                        else:
+                            return name
+
+                    node1name = deduplicate_obj(node1)
+                    node2name = deduplicate_obj(node2)
+
+                    group_name = ""
+                    if isinstance(input_node, Group):
+                        group_name = deduplicate_obj(input_node.group_id)
+
+                    relations_ws.cell(row=row, column=col, value=node1name)
+                    relations_ws.cell(row=row, column=col + 1, value=node2name)
+                    relations_ws.cell(row=row, column=col + 2, value=label)
+                    relations_ws.cell(row=row, column=col + 3, value=id)
+                    relations_ws.cell(row=row, column=col + 4, value=group_name)
+                    row += 1
+
+                for group in sub_groups.values():
+                    relations_extract(self, group)
+
+            relations_extract(self, self)
 
         # potentially saving
-        excel_wb.save("test.xlsx")
+        excel_wb.remove(excel_ws)  # removing default sheet
+        excel_wb.save(TEMP_EXCEL_SHEET)
+        excel_wb.close()
+
+        os.startfile(TEMP_EXCEL_SHEET)
+
+        # some kind of signal?
+
+        user_response = msg.askokcancel(
+            title="yEd Bulk Data Management - Async", message="To process changes, save workbook and press ok."
+        )
+        if user_response:
+            excel_wb = pyxl.load_workbook(TEMP_EXCEL_SHEET)
+
+            if type == "obj_and_hierarchy":
+                # read the data back into structure - making changes
+                # read excel for data / get some stats
+                objects_ws = excel_wb[OBJECTS_WS_NAME]
+                obj_data = tuple(objects_ws.values)
+
+                # change and creation  mode
+
+                # new id or no id?  needs to be created - sorted by n,g, names
+
+                # starts with ownership to graph
+
+                # lookahead indent means group
+
+                # lookbehind indent means belongs to above
+
+                pass
+            elif type == "relations":
+                # relations_ws.cell(row=row, column=col, value=node1name)
+                # relations_ws.cell(row=row, column=col + 1, value=node2name)
+                # relations_ws.cell(row=row, column=col + 2, value=label)
+                # relations_ws.cell(row=row, column=col + 3, value=id)
+                # relations_ws.cell(row=row, column=col + 4, value=group_name)
+                pass
 
         # nodes and groups
         # graph.existing_entities
