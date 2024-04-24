@@ -22,41 +22,42 @@ import psutil
 import pygetwindow as gw
 from openpyxl import Workbook
 
+
+# Enumerated parameters / Constants
 PROGRAM_NAME = "yEd.exe"
 
-# Enumerated parameters
-line_types = [
+LINE_TYPES = [
     "line",
     "dashed",
     "dotted",
     "dashed_dotted",
 ]
 
-font_styles = [
+FONT_STYLES = [
     "plain",
     "bold",
     "italic",
     "bolditalic",
 ]
 
-horizontal_alignments = [
+HORIZONTAL_ALIGNMENTS = [
     "left",
     "center",
     "right",
 ]
 
-vertical_alignments = [
+VERTICAL_ALIGNMENTS = [
     "top",
     "center",
     "bottom",
 ]
 
-custom_property_scopes = [
+CUSTOM_PROPERTY_SCOPES = [
     "node",
     "edge",
 ]  # TODO: DOES THIS NEED GROUP?
 
-custom_property_types = [
+CUSTOM_PROPERTY_TYPES = [
     "string",
     "int",
     "double",
@@ -146,10 +147,10 @@ class Label:
 
         # Initialize dictionary for parameters
         self._params = {}
-        self.updateParam("horizontalTextPosition", horizontal_text_position, horizontal_alignments)
-        self.updateParam("verticalTextPosition", vertical_text_position, vertical_alignments)
-        self.updateParam("alignment", alignment, horizontal_alignments)
-        self.updateParam("fontStyle", font_style, font_styles)
+        self.updateParam("horizontalTextPosition", horizontal_text_position, HORIZONTAL_ALIGNMENTS)
+        self.updateParam("verticalTextPosition", vertical_text_position, VERTICAL_ALIGNMENTS)
+        self.updateParam("alignment", alignment, HORIZONTAL_ALIGNMENTS)
+        self.updateParam("fontStyle", font_style, FONT_STYLES)
 
         # TODO: Implement range checks
         self.updateParam("fontFamily", font_family)
@@ -187,7 +188,7 @@ class Label:
 class NodeLabel(Label):
     """Node specific label"""
 
-    validModelParams = {
+    VALIDMODELPARAMS = {
         "internal": ["t", "b", "c", "l", "r", "tl", "tr", "bl", "br"],
         "corners": ["nw", "ne", "sw", "se"],
         "sandwich": ["n", "s"],
@@ -239,14 +240,14 @@ class NodeLabel(Label):
             has_background_color,
         )
 
-        self.updateParam("modelName", model_name, NodeLabel.validModelParams.keys())
-        self.updateParam("modelPosition", model_position, NodeLabel.validModelParams[model_name])
+        self.updateParam("modelName", model_name, NodeLabel.VALIDMODELPARAMS.keys())
+        self.updateParam("modelPosition", model_position, NodeLabel.VALIDMODELPARAMS[model_name])
 
 
 class EdgeLabel(Label):
     """Edge specific label"""
 
-    validModelParams = {
+    VALIDMODELPARAMS = {
         "two_pos": ["head", "tail"],
         "centered": ["center"],
         "six_pos": ["shead", "thead", "head", "stail", "ttail", "tail"],
@@ -300,8 +301,8 @@ class EdgeLabel(Label):
             has_background_color,
         )
 
-        self.updateParam("modelName", model_name, EdgeLabel.validModelParams.keys())
-        self.updateParam("modelPosition", model_position, EdgeLabel.validModelParams[model_name])
+        self.updateParam("modelName", model_name, EdgeLabel.VALIDMODELPARAMS.keys())
+        self.updateParam("modelPosition", model_position, EdgeLabel.VALIDMODELPARAMS[model_name])
         self.updateParam("preferredPlacement", preferred_placement)
 
 
@@ -340,7 +341,7 @@ class CustomPropertyDefinition:
 class Group:
     """yEd Group Object (Visual Container of Nodes / Edges / also can recursively act as Node)"""
 
-    validShapes = [
+    VALID_SHAPES = [
         "rectangle",
         "rectangle3d",
         "roundrectangle",
@@ -401,7 +402,7 @@ class Group:
         self.num_edges = 0
 
         # node shape
-        checkValue("shape", shape, Group.validShapes)
+        checkValue("shape", shape, Group.VALID_SHAPES)
         self.shape = shape
 
         self.closed = closed
@@ -410,11 +411,11 @@ class Group:
         self.font_family = font_family
         self.underlined_text = underlined_text
 
-        checkValue("font_style", font_style, font_styles)
+        checkValue("font_style", font_style, FONT_STYLES)
         self.font_style = font_style
         self.font_size = font_size
 
-        checkValue("label_alignment", label_alignment, horizontal_alignments)
+        checkValue("label_alignment", label_alignment, HORIZONTAL_ALIGNMENTS)
         self.label_alignment = label_alignment
 
         self.fill = fill
@@ -433,7 +434,7 @@ class Group:
         self.border_color = border_color
         self.border_width = border_width
 
-        checkValue("border_type", border_type, line_types)
+        checkValue("border_type", border_type, LINE_TYPES)
         self.border_type = border_type
 
         self.description = description
@@ -577,7 +578,7 @@ class Node:
 
     custom_properties_defs = {}
 
-    validShapes = [
+    VALID_SHAPES = [
         "rectangle",
         "rectangle3d",
         "roundrectangle",
@@ -653,7 +654,7 @@ class Node:
         self.parent = None
 
         # node shape
-        checkValue("shape", shape, Node.validShapes)
+        checkValue("shape", shape, Node.VALID_SHAPES)
         self.shape = shape
 
         # shape fill
@@ -664,7 +665,7 @@ class Node:
         self.border_color = border_color
         self.border_width = border_width
 
-        checkValue("border_type", border_type, line_types)
+        checkValue("border_type", border_type, LINE_TYPES)
         self.border_type = border_type
 
         # geometry
@@ -763,7 +764,7 @@ class Edge:
 
     custom_properties_defs = {}
 
-    arrow_types = [
+    ARROW_TYPES = [
         "none",
         "standard",
         "white_delta",
@@ -842,13 +843,13 @@ class Edge:
                 background_color=label_background_color,
             )
 
-        checkValue("arrowhead", arrowhead, Edge.arrow_types)
+        checkValue("arrowhead", arrowhead, Edge.ARROW_TYPES)
         self.arrowhead = arrowhead
 
-        checkValue("arrowfoot", arrowfoot, Edge.arrow_types)
+        checkValue("arrowfoot", arrowfoot, Edge.ARROW_TYPES)
         self.arrowfoot = arrowfoot
 
-        checkValue("line_type", line_type, line_types)
+        checkValue("line_type", line_type, LINE_TYPES)
         self.line_type = line_type
 
         self.color = color
@@ -963,9 +964,9 @@ class Graph:
 
     def define_custom_property(self, scope, name, property_type, default_value):
         """Adding custom properties to graph (which makes them available on the contained objects in yEd)"""
-        if scope not in custom_property_scopes:
+        if scope not in CUSTOM_PROPERTY_SCOPES:
             raise RuntimeWarning("Scope %s not recognised" % scope)
-        if property_type not in custom_property_types:
+        if property_type not in CUSTOM_PROPERTY_TYPES:
             raise RuntimeWarning("Property Type %s not recognised" % property_type)
         if not isinstance(default_value, str):
             raise RuntimeWarning("default_value %s needs to be a string" % default_value)
