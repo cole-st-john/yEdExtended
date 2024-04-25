@@ -468,7 +468,7 @@ class Group:
     def add_group(self, group_id, **kwargs):
         """Adding a group within current group object (and same parent graph)."""
         if group_id in self.parent_graph.existing_entities:
-            raise RuntimeWarning("Node %s already exists" % group_id)
+            raise RuntimeWarning("Group %s already exists" % group_id)
 
         group = Group(group_id, self.parent_graph, **kwargs)
         group.parent = self
@@ -476,12 +476,45 @@ class Group:
         self.parent_graph.existing_entities[group_id] = group
         return group
 
+    def remove_node(self, node_name) -> None:
+        """Remove/Delete a node from a group"""
+        # TODO: Act on stranded edges
+        if node_name not in self.nodes:
+            raise RuntimeWarning("Node %s doesn't exist" % node_name)
+        del self.nodes[node_name]
+        del self.parent_graph.existing_entities[node_name]
+
+    def remove_group(self, group_id) -> None:
+        """Removes a group from within current group object (and same parent graph)."""
+        # TODO: Reroute sub nodes, groups and edges (and namings)
+        if group_id not in self.groups:
+            raise RuntimeWarning("Group %s doesn't exist" % group_id)
+        group = self.groups[group_id]
+
+        # reroute dependents
+        for node in group.nodes.values():
+            node.parent = self  # reassign parent: node side
+            self.nodes[node.node_name] = node  # reassign parent: group side
+
+        for edge in group.edges.values():
+            # edge.parent = self  #reassign parent: edge side
+            self.edges[edge.edge_id] = edge  # reassign parent: group side #FIXME: REEXAMINE ID
+
+        for group in group.groups.values():
+            # edge.parent = self  #reassign parent: edge side
+            group.parent = self
+            self.groups[group.group_id] = group  # reassign parent: group side
+
+        del self.groups[group_id]
+        del self.parent_graph.existing_entities[group_id]
+
     def is_ancestor(self, node):
         """Check for possible nesting conflict of this id usage"""
         return node.parent is not None and (node.parent is self or self.is_ancestor(node.parent))
 
     def add_edge(self, node1_name, node2_name, **kwargs):
         """Adds edge - input: node names, not actual node objects"""
+        # TODO: DO EDGES NEED A PARENT FOR EASE OF OPERATIONS
 
         node1 = self.parent_graph.existing_entities.get(node1_name) or self.add_node(node1_name)
 
@@ -805,6 +838,7 @@ class Edge:
         custom_properties=None,
         description="",
         url="",
+        parent=None,
     ):
         self.node1 = node1
         self.node2 = node2
@@ -922,7 +956,7 @@ class Graph:
 
         self.directed = directed
         self.graph_id = graph_id
-        self.existing_entities = {self.graph_id: self}
+        self.existing_entities = dict()
 
         self.groups = {}
 
@@ -955,12 +989,43 @@ class Graph:
     def add_group(self, group_id, **kwargs):
         """Adding group to graph"""
         if group_id in self.existing_entities:
-            raise RuntimeWarning("Node %s already exists" % group_id)
+            raise RuntimeWarning("Group %s already exists" % group_id)
 
         group = Group(group_id, self, **kwargs)
         self.groups[group_id] = group
         self.existing_entities[group_id] = group
         return group
+
+    def remove_node(self, node_name) -> None:
+        """Remove/Delete a node from graph"""
+        # TODO: Act on stranded edges
+        if node_name not in self.existing_entities:
+            raise RuntimeWarning("Node %s doesn't exist" % node_name)
+        del self.nodes[node_name]
+        del self.existing_entities[node_name]
+
+    def remove_group(self, group_id):
+        """Removes a group from within current group object (and same parent graph)."""
+        # TODO: Reroute sub nodes, groups and edges (and namings)
+        if group_id not in self.existing_entities:
+            raise RuntimeWarning("Group %s doesn't exist" % group_id)
+
+        # reroute dependents
+        for node in self.nodes.values():
+            node.parent = self  # reassign parent: node side
+            self.nodes[node.node_name] = node  # reassign parent: group side
+
+        for edge in self.edges.values():
+            # edge.parent = self  #reassign parent: edge side
+            self.edges[edge.edge_id] = edge  # reassign parent: group side #FIXME: REEXAMINE ID
+
+        for group in self.groups.values():
+            # edge.parent = self  #reassign parent: edge side
+            group.parent = self
+            self.groups[group.group_id] = group  # reassign parent: group side
+
+        del self.groups[group_id]
+        del self.existing_entities[group_id]
 
     def define_custom_property(self, scope, name, property_type, default_value):
         """Adding custom properties to graph (which makes them available on the contained objects in yEd)"""
@@ -1529,24 +1594,29 @@ class Graph:
 
                 # identifying last used Id
                 ids = sorted(id_to_label)
-                last_id = ids[-1]
-                last_id_num = re.match(r".*?(\d+)", last_id)
-                if last_id_num and last_id_num.group(1):
-                    last_id = int(last_id_num.group(1))
+                if ids:
+                    last_id = ids[-1]
+                    last_id_num = re.match(r".*?(\d+)", last_id)
+                    if last_id_num and last_id_num.group(1):
+                        last_id = int(last_id_num.group(1))
                 else:
                     last_id = 0
 
                 objects = list()
+                # Building / Modifying objects
+                all_bulk_mod_ids = set()
+                all_curr_obj_ids = set(id_to_obj.keys())
                 for i, (nr_indent, gr_i, obj_row) in enumerate(zip(indent, group_identifiers, obj_data)):
                     # possibilities:
                     #     completely new node / group
                     #     changed label - same node and structure
                     #     changed structuring - groups vs nodes
                     # changed structuring from node <-> group
-                    # changed owner
-                    # changed owning
+                    #     changed owner
+                    #     changed owning
                     #     there can be multiple groups at same level
                     #     negative - when in this mode - dont have ability to detect  / correct now problem relationships
+                    # deleted nodes (id is no longer existing)
 
                     # Extracting label and id
                     label = obj_row[nr_indent]
@@ -1554,8 +1624,9 @@ class Graph:
                     try:
                         id = obj_row[nr_indent + 1]
                     except Exception as e:
-                        print(f"Error with id: {e}")
-                        continue
+                        print(f"Node missing Id: {e}. Id will be assigned.")
+                    else:
+                        all_bulk_mod_ids.add(id)
 
                     # Checks
                     id_given = id is not None
@@ -1579,7 +1650,7 @@ class Graph:
                     if not id_exists:
                         if is_group:
                             if is_group_owned:
-                                objects.append(owner_inst.add_group(id=id, label=label))
+                                objects.append(owner_inst.add_group(group_id=id, label=label))
                             else:
                                 objects.append(self.add_group(group_id=id, label=label))
 
@@ -1606,6 +1677,23 @@ class Graph:
                         objects.append(existing_obj)
 
                         pass
+
+                # Deleted nodes
+                # find all deleted nodes
+                all_deleted_obj_ids = all_curr_obj_ids.difference(all_bulk_mod_ids)
+                for obj_id in all_deleted_obj_ids:
+                    obj: Group | Node = id_to_obj[obj_id]
+                    parent = obj.parent or self
+                    if isinstance(obj, Group):  # group
+                        # find all immediate dependents and connect them to owner
+                        parent.remove_group(obj_id)
+
+                    elif isinstance(obj, Node):  # node
+                        parent.remove_node(obj_id)
+
+                # Run stranded edges check
+
+                # Run any other problem checks
 
             elif type == "relations":  # TODO: Implement this
                 # relations_ws.cell(row=row, column=col, value=node1name)
