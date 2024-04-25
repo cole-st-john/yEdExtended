@@ -52,7 +52,7 @@ graph1.persist_graph('pretty_example.graphml', pretty_print=True)
 
 ```
 
-Saving this to a file with a ``.graphml`` extension, opening in yEd, applying  ``Tools -> Fit Node to Label`` and ``Layout -> One-click layout`` produces something like the following:
+Saving this to a file with a ``.graphml`` extension, opening in yEd, applying  ``Tools -> Fit Node to Label``(Win: Alt + T + N) and ``Layout -> Hierarchical``(Win: Alt + Shift + H) produces something like the following:
 
 ![SIMPLE GRAPH](images/example.png)
 
