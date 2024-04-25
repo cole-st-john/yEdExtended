@@ -84,7 +84,7 @@ def checkValue(
             raise InvalidValueError(f"{parameter_name} '{value}' is not supported. Use: '{', '.join(validValues)}'")
 
 
-class Graph_file:
+class File:
     def __init__(self, file_name_or_path=None):
         self.DEFAULT_FILE_NAME = "temp"
         self.EXTENSION = ".graphml"
@@ -1047,12 +1047,12 @@ class Graph:
 
         self.graphml = graphml
 
-    def persist_graph(self, file=None, pretty_print=False, overwrite=False) -> Graph_file:
+    def persist_graph(self, file=None, pretty_print=False, overwrite=False) -> File:
         """Convert graphml object->xml tree->graphml file.
         Temporary naming used if not given.
         """
 
-        graph_file = Graph_file(file)
+        graph_file = File(file)
 
         if graph_file.file_exists and not overwrite:
             raise FileExistsError
@@ -1079,14 +1079,14 @@ class Graph:
         else:
             return ET.tostring(self.graphml, encoding="UTF-8").decode()
 
-    def from_existing_graph(self, file: str | Graph_file):
+    def from_existing_graph(self, file: str | File):
         """Parse xml of existing/stored graph file into python"""
 
         # Manage file input ==============================
-        if isinstance(file, Graph_file):
+        if isinstance(file, File):
             graph_file = file
         else:
-            graph_file = Graph_file(file)
+            graph_file = File(file)
         if not graph_file.file_exists:
             raise FileNotFoundError
 
@@ -1353,7 +1353,7 @@ class Graph:
         return new_graph
 
     # TODO: UNDER CONSTRUCTION
-    def manage_graph_data_in_excel(self, type=None):
+    def manage_graph_data_in_excel(self, type=None) -> None:
         """Displaying groups, nodes, edges in list format"""
 
         TEMP_EXCEL_SHEET = "test.xlsx"
@@ -1368,7 +1368,8 @@ class Graph:
         excel_ws = excel_wb.active
 
         # Extract objects ============================================
-        all_obj = dict()
+        id_to_label = dict()
+        id_to_obj = dict()
         OBJECTS_WS_NAME = "Objects_and_Groups"
         objects_ws = excel_wb.create_sheet(OBJECTS_WS_NAME, 0)
 
@@ -1381,7 +1382,8 @@ class Graph:
 
         def object_extract(self, input_node, indent_level):
             nonlocal row
-            nonlocal all_obj
+            nonlocal id_to_label
+            nonlocal id_to_obj
 
             sub_nodes = input_node.nodes
             sub_groups = input_node.groups
@@ -1397,7 +1399,8 @@ class Graph:
                 else:
                     label = ""
 
-                all_obj[id] = label
+                id_to_label[id] = label
+                id_to_obj[id] = node
 
                 objects_ws.cell(row=row, column=indent_level, value=label)
                 objects_ws.cell(row=row, column=indent_level + 1, value=id)
@@ -1411,7 +1414,8 @@ class Graph:
                 row += 1
                 print(id, label)
 
-                all_obj[id] = label
+                id_to_label[id] = label
+                id_to_obj[id] = group
                 object_extract(self, group, indent_level=indent_level + 1)
 
         object_extract(self, self, indent_level=1)
@@ -1425,7 +1429,7 @@ class Graph:
             relations_ws.cell(
                 row=1, column=1, value="FORMAT -> NODE1 | NODE2 | EDGE_LABEL | EDGE_ID | GROUP_ID (OWNING EDGE)"
             )
-            obj_values = list(all_obj.values())
+            obj_values = list(id_to_label.values())
             dup_objects = list(filter(lambda x: True if obj_values.count(x) > 1 else False, obj_values))
 
             def relations_extract(self, input_node):
@@ -1445,7 +1449,7 @@ class Graph:
                         label = ""
 
                     def deduplicate_obj(id):
-                        name = all_obj[id]
+                        name = id_to_label[id]
                         if name in dup_objects:
                             return id + "##" + name
                         else:
@@ -1489,20 +1493,121 @@ class Graph:
                 # read the data back into structure - making changes
                 # read excel for data / get some stats
                 objects_ws = excel_wb[OBJECTS_WS_NAME]
-                obj_data = tuple(objects_ws.values)
+                obj_data = list(objects_ws.values)
+                obj_data.pop(0)
+                num_items = len(obj_data)
 
-                # change and creation  mode
+                # identifying indents in excel (marker for groupings)
+                indent: list[int] = []
+                for row in obj_data:
+                    none_i = 0
+                    for val in row:
+                        if val == None:
+                            none_i += 1
+                        else:
+                            break  # per row for
+                    indent.append(none_i)
 
-                # new id or no id?  needs to be created - sorted by n,g, names
+                # identifying groups
+                group_identifiers = list(map(lambda x: 1 if indent[x + 1] > indent[x] else 0, range(0, num_items - 1)))
+                group_identifiers.append(0)  # FIXME: small limitation - deepest or last cannot be group
 
-                # starts with ownership to graph
+                # identifying ownership
+                owner = dict()
+                indent_and_group_ident = list(zip(indent, group_identifiers))
+                for i in range(0, num_items):
+                    owner[i] = None
+                    if i == 0:
+                        continue
+                    curr_indent = indent[i]
+                    for j, (indent_i, is_group) in enumerate(reversed(indent_and_group_ident[:i])):
+                        if indent_i == curr_indent - 1 and is_group == 1:
+                            owner[i] = i - (j + 1)
+                            break
 
-                # lookahead indent means group
+                # of format: label|id (optional)
 
-                # lookbehind indent means belongs to above
+                # identifying last used Id
+                ids = sorted(id_to_label)
+                last_id = ids[-1]
+                last_id_num = re.match(r".*?(\d+)", last_id)
+                if last_id_num and last_id_num.group(1):
+                    last_id = int(last_id_num.group(1))
+                else:
+                    last_id = 0
 
-                pass
-            elif type == "relations":
+                objects = list()
+                for i, (nr_indent, gr_i, obj_row) in enumerate(zip(indent, group_identifiers, obj_data)):
+                    # possibilities:
+                    #     completely new node / group
+                    #     changed label - same node and structure
+                    #     changed structuring - groups vs nodes
+                    # changed structuring from node <-> group
+                    # changed owner
+                    # changed owning
+                    #     there can be multiple groups at same level
+                    #     negative - when in this mode - dont have ability to detect  / correct now problem relationships
+
+                    # Extracting label and id
+                    label = obj_row[nr_indent]
+                    id = None
+                    try:
+                        id = obj_row[nr_indent + 1]
+                    except Exception as e:
+                        print(f"Error with id: {e}")
+                        continue
+
+                    # Checks
+                    id_given = id is not None
+                    id_exists = id is not None and id in id_to_label
+                    is_group = gr_i == 1
+                    is_node = gr_i == 0
+                    is_group_owned = owner[i] is not None
+
+                    # giving an id if not one assigned
+                    if not id_given:
+                        if is_group:
+                            id = "g" + str(last_id + 1)
+                        if is_node:
+                            id = "n" + str(last_id + 1)
+                        last_id += 1
+
+                    if is_group_owned:
+                        owner_inst = objects[owner[i]]
+
+                    # This is a new object
+                    if not id_exists:
+                        if is_group:
+                            if is_group_owned:
+                                objects.append(owner_inst.add_group(id=id, label=label))
+                            else:
+                                objects.append(self.add_group(group_id=id, label=label))
+
+                        elif is_node:
+                            if is_group_owned:
+                                objects.append(owner_inst.add_node(node_name=id, label=label))
+                            else:
+                                objects.append(self.add_node(node_name=id, label=label))
+
+                        else:
+                            raise NotImplementedError("This state not implemented")
+
+                    elif id_exists:
+                        # changed name
+                        # all_obj
+                        existing_obj = id_to_obj[id]
+
+                        # changed structuring from node <-> group
+
+                        # changed owner
+
+                        # changed owning
+
+                        objects.append(existing_obj)
+
+                        pass
+
+            elif type == "relations":  # TODO: Implement this
                 # relations_ws.cell(row=row, column=col, value=node1name)
                 # relations_ws.cell(row=row, column=col + 1, value=node2name)
                 # relations_ws.cell(row=row, column=col + 2, value=label)
@@ -1510,16 +1615,8 @@ class Graph:
                 # relations_ws.cell(row=row, column=col + 4, value=group_name)
                 pass
 
-        # nodes and groups
-        # graph.existing_entities
-        # graph.edges
-
-        # gather nodes
-        # gather groups
-        # gather edges - node1 node2 label id
-
-        # replace vs
-        #     pass
+            elif type == "object_data":  # TODO: Implement this
+                pass
 
 
 # App related functions -------------------------
@@ -1569,7 +1666,7 @@ def _maximize(file=None) -> None:
         window.maximize()
 
 
-def get_yed_graph_window_id(file: Graph_file | None):
+def get_yed_graph_window_id(file: File | None):
     """Retrieve handle of yed window containing file"""
     APP_NAME = "yEd"
     window = None
@@ -1584,13 +1681,13 @@ def get_yed_graph_window_id(file: Graph_file | None):
     return window[0] if window else None
 
 
-def is_yed_graph_open(file: Graph_file) -> bool:
+def is_yed_graph_open(file: File) -> bool:
     """Check whether yEd is currently open with particular file - windows, linux, os, etc."""
     window = get_yed_graph_window_id(file)
     return window is not None
 
 
-def open_yed_file(file: Graph_file, force=False) -> None:
+def open_yed_file(file: File, force=False) -> None:
     """Opens yed file - also will start yed if not open."""
     if force:
         answer = msg.askokcancel(title="Force yEd App Close", message="Are you ok to force yEd closure?")
