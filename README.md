@@ -4,10 +4,10 @@ This Python library extends [yEd](http://www.yworks.com/en/products_yed_about.ht
 - [x] creating graphs
 - [x] formatting graphs
 - [x] reading graphs  - **Initial Draft Implementation**
+- [x] bulk data management methods  - **Initial Draft Implementation**
+- [x] management of the yEd application - **Initial Draft Implementation**
 - [ ] enforcing rules on graphs
 - [ ] addition of standard sorting methods
-- [ ] bulk data management methods
-- [x] management of the yEd application  **Initial Draft Implementation**
 
 ![image](images/graph.gif)
 
