@@ -1003,6 +1003,7 @@ class Graph:
 
         self.graphml: ET.Element  # FIXME:
 
+    # Addition of items ============================
     def add_node(self, node_name, **kwargs):
         """Adding defined node to graph"""
         if node_name in self.existing_entities:
@@ -1037,6 +1038,22 @@ class Graph:
         self.existing_entities[group_id] = group
         return group
 
+    def define_custom_property(self, scope, name, property_type, default_value):
+        """Adding custom properties to graph (which makes them available on the contained objects in yEd)"""
+        if scope not in CUSTOM_PROPERTY_SCOPES:
+            raise RuntimeWarning("Scope %s not recognised" % scope)
+        if property_type not in CUSTOM_PROPERTY_TYPES:
+            raise RuntimeWarning("Property Type %s not recognised" % property_type)
+        if not isinstance(default_value, str):
+            raise RuntimeWarning("default_value %s needs to be a string" % default_value)
+        custom_property = CustomPropertyDefinition(scope, name, property_type, default_value)
+        self.custom_properties.append(custom_property)
+        if scope == "node":
+            Node.set_custom_properties_defs(custom_property)
+        elif scope == "edge":
+            Edge.set_custom_properties_defs(custom_property)
+
+    # Removal of items ==============================
     def remove_node(self, node_name) -> None:
         """Remove/Delete a node from graph"""
         # TODO: Act on stranded edges
@@ -1075,21 +1092,9 @@ class Graph:
         del self.edges[edge_id]
         self.num_edges -= 1
 
-    def define_custom_property(self, scope, name, property_type, default_value):
-        """Adding custom properties to graph (which makes them available on the contained objects in yEd)"""
-        if scope not in CUSTOM_PROPERTY_SCOPES:
-            raise RuntimeWarning("Scope %s not recognised" % scope)
-        if property_type not in CUSTOM_PROPERTY_TYPES:
-            raise RuntimeWarning("Property Type %s not recognised" % property_type)
-        if not isinstance(default_value, str):
-            raise RuntimeWarning("default_value %s needs to be a string" % default_value)
-        custom_property = CustomPropertyDefinition(scope, name, property_type, default_value)
-        self.custom_properties.append(custom_property)
-        if scope == "node":
-            Node.set_custom_properties_defs(custom_property)
-        elif scope == "edge":
-            Edge.set_custom_properties_defs(custom_property)
+    # TODO: REMOVE / MODIFY CUSTOM PROPERTIES FUNCTIONALITY
 
+    # Graph functionalities ===========================
     def construct_graphml(self):
         """Creating template graphml xml structure and then placing all graph items into it."""
 
@@ -1465,7 +1470,6 @@ class Graph:
 
         return new_graph
 
-    # TODO: UNDER CONSTRUCTION
     def manage_graph_data_in_excel(self, type=None) -> None:
         """Displaying groups, nodes, edges in list format"""
 
@@ -1739,7 +1743,8 @@ class Graph:
                 elif isinstance(obj, Node):  # node
                     parent.remove_node(obj_id)
 
-            # Run stranded edges check
+            # Run Checks
+            self.run_graph_rules()
 
         elif type == "relations":  # TODO: Implement this
             # relations_ws.cell(row=row, column=col, value=node1name)
@@ -1752,20 +1757,20 @@ class Graph:
         elif type == "object_data":  # TODO: Implement this
             pass
 
-    def gather_graph_stats(self):
+    def gather_graph_stats(self) -> GraphStats:
         return GraphStats(self)
 
     def run_graph_rules(self, correct=None):
-        if correct == None:  #  ("auto", "manual")
-            correct = "manual"
+        if correct is None:  #  ("auto", "manual")
+            correct = "auto"
 
         stats = self.gather_graph_stats()
 
         def stranded_edges_check(self, graph_stats, correct):
             stranded_edges = set()
             for edge_id, edge in graph_stats.all_edges.items():
-                node1_exist = edge.node1 in graph_stats.all_nodes.values()
-                node2_exist = edge.node2 in graph_stats.all_nodes.values()
+                node1_exist = edge.node1 in graph_stats.all_nodes.keys()
+                node2_exist = edge.node2 in graph_stats.all_nodes.keys()
                 stranded_edge = not node1_exist or not node2_exist
                 at_least_one_edge = node1_exist or node2_exist
                 if stranded_edge:
@@ -1773,7 +1778,7 @@ class Graph:
 
             if correct == "auto":
                 for edge in stranded_edges:
-                    edge.parent.remove_edge()
+                    edge.parent.remove_edge(edge.edge_id)
 
             elif correct == "manual":
                 # run relations and highlight edges with issues?
@@ -1785,7 +1790,7 @@ class Graph:
         stranded_edges = stranded_edges_check(self, stats, correct)
 
 
-# App related functions -------------------------
+# App related functions ===========================
 def is_yed_findable():
     """Find yed exe path locally"""
     path = which(PROGRAM_NAME) or None
@@ -1881,7 +1886,7 @@ def start_yed() -> None:
             subprocess.run(PROGRAM_NAME)
 
 
-# Utilities
+# Utilities =======================================
 def xml_to_simple_string(file_path) -> str:
     try:
         with open(file_path, "r") as graph_file:
