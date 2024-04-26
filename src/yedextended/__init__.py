@@ -476,6 +476,27 @@ class Group:
         self.parent_graph.existing_entities[group_id] = group
         return group
 
+    def add_edge(self, node1_name, node2_name, **kwargs):
+        """Adds edge - input: node names, not actual node objects"""
+        # TODO: DO EDGES NEED A PARENT FOR EASE OF OPERATIONS
+
+        node1 = self.parent_graph.existing_entities.get(node1_name) or self.add_node(node1_name)
+
+        node2 = self.parent_graph.existing_entities.get(node2_name) or self.add_node(node2_name)
+
+        # http://graphml.graphdrawing.org/primer/graphml-primer.html#Nested
+        # The edges between two nodes in a nested graph have to be declared in a graph,
+        # which is an ancestor of both nodes in the hierarchy.
+
+        if not (self.is_ancestor(node1) and self.is_ancestor(node2)):
+            raise RuntimeWarning("Group %s is not ancestor of both %s and %s" % (self.group_id, node1_name, node2_name))
+
+        self.parent_graph.num_edges += 1
+        kwargs["edge_id"] = str(self.parent_graph.num_edges)
+        edge = Edge(node1_name, node2_name, **kwargs)
+        edge.parent = self
+        self.edges[edge.edge_id] = edge
+        return edge
     def remove_node(self, node_name) -> None:
         """Remove/Delete a node from a group"""
         # TODO: Act on stranded edges
@@ -508,30 +529,18 @@ class Group:
         del self.groups[group_id]
         del self.parent_graph.existing_entities[group_id]
 
+    def remove_edge(self, edge_id):
+        """Removing edge from group  - uses node names not node objects."""
+        if not self.edges[edge_id]:
+            raise RuntimeWarning("Edge %s does not exist under group %s" % (edge_id, self.group_id))
+
+        del self.edges[edge_id]
+        # self.num_edges -= 1
+        self.parent_graph.num_edges -= 1
     def is_ancestor(self, node):
         """Check for possible nesting conflict of this id usage"""
         return node.parent is not None and (node.parent is self or self.is_ancestor(node.parent))
 
-    def add_edge(self, node1_name, node2_name, **kwargs):
-        """Adds edge - input: node names, not actual node objects"""
-        # TODO: DO EDGES NEED A PARENT FOR EASE OF OPERATIONS
-
-        node1 = self.parent_graph.existing_entities.get(node1_name) or self.add_node(node1_name)
-
-        node2 = self.parent_graph.existing_entities.get(node2_name) or self.add_node(node2_name)
-
-        # http://graphml.graphdrawing.org/primer/graphml-primer.html#Nested
-        # The edges between two nodes in a nested graph have to be declared in a graph,
-        # which is an ancestor of both nodes in the hierarchy.
-
-        if not (self.is_ancestor(node1) and self.is_ancestor(node2)):
-            raise RuntimeWarning("Group %s is not ancestor of both %s and %s" % (self.group_id, node1_name, node2_name))
-
-        self.parent_graph.num_edges += 1
-        kwargs["edge_id"] = str(self.parent_graph.num_edges)
-        edge = Edge(node1_name, node2_name, **kwargs)
-        self.edges[edge.edge_id] = edge
-        return edge
 
     def convert_to_xml(self):
         """Converting graph object to graphml xml object"""
@@ -838,7 +847,6 @@ class Edge:
         custom_properties=None,
         description="",
         url="",
-        parent=None,
     ):
         self.node1 = node1
         self.node2 = node2
@@ -892,6 +900,7 @@ class Edge:
         self.description = description
         self.url = url
 
+        self.parent = None
         # Handle Edge Custom Properties
         for name, definition in Edge.custom_properties_defs.items():
             if custom_properties:
@@ -984,6 +993,7 @@ class Graph:
         kwargs["edge_id"] = str(self.num_edges)
         edge = Edge(node1_name, node2_name, **kwargs)
         self.edges[edge.edge_id] = edge
+        edge.parent = self
         return edge
 
     def add_group(self, group_id, **kwargs):
@@ -1027,6 +1037,12 @@ class Graph:
         del self.groups[group_id]
         del self.existing_entities[group_id]
 
+    def remove_edge(self, edge_id):
+        """Removing edge from graph - uses node names not node objects."""
+        if not self.edges[edge_id]:
+            raise RuntimeWarning("Edge %s does not exist under graph" % (edge_id))
+        del self.edges[edge_id]
+        self.num_edges -= 1
     def define_custom_property(self, scope, name, property_type, default_value):
         """Adding custom properties to graph (which makes them available on the contained objects in yEd)"""
         if scope not in CUSTOM_PROPERTY_SCOPES:
