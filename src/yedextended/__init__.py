@@ -22,7 +22,6 @@ import psutil
 import pygetwindow as gw
 import openpyxl as pyxl
 
-
 # Enumerated parameters / Constants
 PROGRAM_NAME = "yEd.exe"
 
@@ -497,6 +496,7 @@ class Group:
         edge.parent = self
         self.edges[edge.edge_id] = edge
         return edge
+
     def remove_node(self, node_name) -> None:
         """Remove/Delete a node from a group"""
         # TODO: Act on stranded edges
@@ -537,10 +537,10 @@ class Group:
         del self.edges[edge_id]
         # self.num_edges -= 1
         self.parent_graph.num_edges -= 1
+
     def is_ancestor(self, node):
         """Check for possible nesting conflict of this id usage"""
         return node.parent is not None and (node.parent is self or self.is_ancestor(node.parent))
-
 
     def convert_to_xml(self):
         """Converting graph object to graphml xml object"""
@@ -901,6 +901,7 @@ class Edge:
         self.url = url
 
         self.parent = None
+
         # Handle Edge Custom Properties
         for name, definition in Edge.custom_properties_defs.items():
             if custom_properties:
@@ -955,6 +956,35 @@ class Edge:
         cls.custom_properties_defs[custom_property.name] = custom_property
 
 
+class GraphStats:
+    def __init__(self, graph_or_input_node):
+        self.all_nodes = dict()
+        self.all_groups = dict()
+        self.all_edges = dict()
+        self.recursive_id_extract(graph_or_input_node)
+
+    def recursive_id_extract(self, graph_or_input_node):
+        sub_nodes = graph_or_input_node.nodes.values()
+        sub_groups = graph_or_input_node.groups.values()
+        sub_edges = graph_or_input_node.edges.values()
+
+        for node in sub_nodes:
+            id = node.node_name
+            if id:
+                self.all_nodes[id] = node
+
+        for group in sub_groups:
+            id = group.group_id
+            if id:
+                self.all_groups[id] = group
+            self.recursive_id_extract(group)
+
+        for edge in sub_edges:
+            id = edge.edge_id
+            if id:
+                self.all_edges[id] = edge
+
+
 class Graph:
     """Graph structure - carries yEd graph information"""
 
@@ -986,8 +1016,9 @@ class Graph:
     def add_edge(self, node1_name, node2_name, **kwargs):
         """Adding edge to graph - uses node names not node objects."""
 
-        self.existing_entities.get(node1_name) or self.add_node(node1_name)
-        self.existing_entities.get(node2_name) or self.add_node(node2_name)
+        # Ensuring nodes are existing at time of edge creation (error avoidance) - dont need assignments
+        node1 = self.existing_entities.get(node1_name) or self.add_node(node1_name)
+        node2 = self.existing_entities.get(node2_name) or self.add_node(node2_name)
 
         self.num_edges += 1
         kwargs["edge_id"] = str(self.num_edges)
@@ -1043,6 +1074,7 @@ class Graph:
             raise RuntimeWarning("Edge %s does not exist under graph" % (edge_id))
         del self.edges[edge_id]
         self.num_edges -= 1
+
     def define_custom_property(self, scope, name, property_type, default_value):
         """Adding custom properties to graph (which makes them available on the contained objects in yEd)"""
         if scope not in CUSTOM_PROPERTY_SCOPES:
@@ -1567,160 +1599,190 @@ class Graph:
         user_response = msg.askokcancel(
             title="yEd Bulk Data Management - Async", message="To process changes, save workbook and press ok."
         )
-        if user_response:
-            excel_wb = pyxl.load_workbook(TEMP_EXCEL_SHEET)
+        if not user_response:
+            return
 
-            if type == "obj_and_hierarchy":
-                # read the data back into structure - making changes
-                # read excel for data / get some stats
-                objects_ws = excel_wb[OBJECTS_WS_NAME]
-                obj_data = list(objects_ws.values)
-                obj_data.pop(0)
-                num_items = len(obj_data)
+        excel_wb = pyxl.load_workbook(TEMP_EXCEL_SHEET)
 
-                # identifying indents in excel (marker for groupings)
-                indent: list[int] = []
-                for row in obj_data:
-                    none_i = 0
-                    for val in row:
-                        if val == None:
-                            none_i += 1
-                        else:
-                            break  # per row for
-                    indent.append(none_i)
+        if type == "obj_and_hierarchy":
+            # read the data back into structure - making changes
+            # read excel for data / get some stats
+            objects_ws = excel_wb[OBJECTS_WS_NAME]
+            obj_data = list(objects_ws.values)
+            obj_data.pop(0)  # remove header
 
-                # identifying groups
-                group_identifiers = list(map(lambda x: 1 if indent[x + 1] > indent[x] else 0, range(0, num_items - 1)))
-                group_identifiers.append(0)  # FIXME: small limitation - deepest or last cannot be group
-
-                # identifying ownership
-                owner = dict()
-                indent_and_group_ident = list(zip(indent, group_identifiers))
-                for i in range(0, num_items):
-                    owner[i] = None
-                    if i == 0:
-                        continue
-                    curr_indent = indent[i]
-                    for j, (indent_i, is_group) in enumerate(reversed(indent_and_group_ident[:i])):
-                        if indent_i == curr_indent - 1 and is_group == 1:
-                            owner[i] = i - (j + 1)
-                            break
-
-                # of format: label|id (optional)
-
-                # identifying last used Id
-                ids = sorted(id_to_label)
-                if ids:
-                    last_id = ids[-1]
-                    last_id_num = re.match(r".*?(\d+)", last_id)
-                    if last_id_num and last_id_num.group(1):
-                        last_id = int(last_id_num.group(1))
-                else:
-                    last_id = 0
-
-                objects = list()
-                # Building / Modifying objects
-                all_bulk_mod_ids = set()
-                all_curr_obj_ids = set(id_to_obj.keys())
-                for i, (nr_indent, gr_i, obj_row) in enumerate(zip(indent, group_identifiers, obj_data)):
-                    # possibilities:
-                    #     completely new node / group
-                    #     changed label - same node and structure
-                    #     changed structuring - groups vs nodes
-                    # changed structuring from node <-> group
-                    #     changed owner
-                    #     changed owning
-                    #     there can be multiple groups at same level
-                    #     negative - when in this mode - dont have ability to detect  / correct now problem relationships
-                    # deleted nodes (id is no longer existing)
-
-                    # Extracting label and id
-                    label = obj_row[nr_indent]
-                    id = None
-                    try:
-                        id = obj_row[nr_indent + 1]
-                    except Exception as e:
-                        print(f"Node missing Id: {e}. Id will be assigned.")
+            # identifying indents in excel (marker for groupings)
+            indent: list[int] = []
+            for row in obj_data:
+                none_i = 0
+                for val in row:
+                    if val == None:
+                        none_i += 1
                     else:
-                        all_bulk_mod_ids.add(id)
+                        break  # per row for
+                indent.append(none_i)
 
-                    # Checks
-                    id_given = id is not None
-                    id_exists = id is not None and id in id_to_label
-                    is_group = gr_i == 1
-                    is_node = gr_i == 0
-                    is_group_owned = owner[i] is not None
+            # identifying groups
+            num_items = len(obj_data)
+            group_identifiers = list(map(lambda x: 1 if indent[x + 1] > indent[x] else 0, range(0, num_items - 1)))
+            group_identifiers.append(0)  # FIXME: small limitation - deepest or last cannot be group
 
-                    # giving an id if not one assigned
-                    if not id_given:
-                        if is_group:
-                            id = "g" + str(last_id + 1)
-                        if is_node:
-                            id = "n" + str(last_id + 1)
-                        last_id += 1
+            # identifying ownership
+            owner = dict()
+            indent_and_group_ident = list(zip(indent, group_identifiers))
+            for i in range(0, num_items):
+                owner[i] = None
+                if i == 0:
+                    continue
+                curr_indent = indent[i]
+                for j, (indent_i, is_group) in enumerate(reversed(indent_and_group_ident[:i])):
+                    if indent_i == curr_indent - 1 and is_group == 1:
+                        owner[i] = i - (j + 1)
+                        break
 
-                    if is_group_owned:
-                        owner_inst = objects[owner[i]]
+            # of format: label|id (optional)
 
-                    # This is a new object
-                    if not id_exists:
-                        if is_group:
-                            if is_group_owned:
-                                objects.append(owner_inst.add_group(group_id=id, label=label))
-                            else:
-                                objects.append(self.add_group(group_id=id, label=label))
+            # identifying last used Id # TODO: NEEDS REFACTORING - ID COUNTING IS PER OWNER
+            ids = sorted(id_to_label)
+            if ids:
+                last_id = ids[-1]
+                last_id_num = re.match(r".*?(\d+)", last_id)
+                if last_id_num and last_id_num.group(1):
+                    last_id = int(last_id_num.group(1))
+            else:
+                last_id = 0
 
-                        elif is_node:
-                            if is_group_owned:
-                                objects.append(owner_inst.add_node(node_name=id, label=label))
-                            else:
-                                objects.append(self.add_node(node_name=id, label=label))
+            objects = list()
+            # Building / Modifying objects
+            all_bulk_mod_ids = set()
+            all_curr_obj_ids = set(id_to_obj.keys())
+            for i, (nr_indent, gr_i, obj_row) in enumerate(zip(indent, group_identifiers, obj_data)):
+                # possibilities:
+                #     completely new node / group
+                #     changed label - same node and structure
+                #     changed structuring - groups vs nodes
+                # changed structuring from node <-> group
+                #     changed owner
+                #     changed owning
+                #     there can be multiple groups at same level
+                #     negative - when in this mode - dont have ability to detect  / correct now problem relationships
+                # deleted nodes (id is no longer existing)
 
+                # Extracting label and id
+                label = obj_row[nr_indent]
+                id = None
+                try:
+                    id = obj_row[nr_indent + 1]
+                except Exception as e:
+                    print(f"Node missing Id: {e}. Id will be assigned.")
+                else:
+                    all_bulk_mod_ids.add(id)
+
+                # Checks
+                id_given = id is not None
+                id_exists = id is not None and id in id_to_label
+                is_group = gr_i == 1
+                is_node = gr_i == 0
+                is_group_owned = owner[i] is not None
+
+                # giving an id if not one assigned
+                if not id_given:
+                    if is_group:
+                        id = "g" + str(last_id + 1)
+                    if is_node:
+                        id = "n" + str(last_id + 1)
+                    last_id += 1
+
+                if is_group_owned:
+                    owner_inst = objects[owner[i]]
+
+                # This is a new object
+                if not id_exists:
+                    if is_group:
+                        if is_group_owned:
+                            objects.append(owner_inst.add_group(group_id=id, label=label))
                         else:
-                            raise NotImplementedError("This state not implemented")
+                            objects.append(self.add_group(group_id=id, label=label))
 
-                    elif id_exists:
-                        # changed name
-                        # all_obj
-                        existing_obj = id_to_obj[id]
+                    elif is_node:
+                        if is_group_owned:
+                            objects.append(owner_inst.add_node(node_name=id, label=label))
+                        else:
+                            objects.append(self.add_node(node_name=id, label=label))
 
-                        # changed structuring from node <-> group
+                    else:
+                        raise NotImplementedError("This state not implemented")
 
-                        # changed owner
+                elif id_exists:
+                    # changed name
+                    existing_obj = id_to_obj[id]
 
-                        # changed owning
+                    # changed structuring from node <-> group
 
-                        objects.append(existing_obj)
+                    # changed owner
 
-                        pass
+                    # changed owning
 
-                # Deleted nodes
-                # find all deleted nodes
-                all_deleted_obj_ids = all_curr_obj_ids.difference(all_bulk_mod_ids)
-                for obj_id in all_deleted_obj_ids:
-                    obj: Group | Node = id_to_obj[obj_id]
-                    parent = obj.parent or self
-                    if isinstance(obj, Group):  # group
-                        # find all immediate dependents and connect them to owner
-                        parent.remove_group(obj_id)
+                    objects.append(existing_obj)
 
-                    elif isinstance(obj, Node):  # node
-                        parent.remove_node(obj_id)
+                    pass
 
-                # Run stranded edges check
+            # Deleted objects
+            all_deleted_obj_ids = all_curr_obj_ids.difference(all_bulk_mod_ids)
+            for obj_id in all_deleted_obj_ids:
+                obj: Group | Node = id_to_obj[obj_id]
+                parent = obj.parent or self
+                if isinstance(obj, Group):  # group
+                    # find all immediate dependents and connect them to owner
+                    parent.remove_group(obj_id)
 
-                # Run any other problem checks
+                elif isinstance(obj, Node):  # node
+                    parent.remove_node(obj_id)
 
-            elif type == "relations":  # TODO: Implement this
-                # relations_ws.cell(row=row, column=col, value=node1name)
-                # relations_ws.cell(row=row, column=col + 1, value=node2name)
-                # relations_ws.cell(row=row, column=col + 2, value=label)
-                # relations_ws.cell(row=row, column=col + 3, value=id)
-                # relations_ws.cell(row=row, column=col + 4, value=group_name)
+            # Run stranded edges check
+
+        elif type == "relations":  # TODO: Implement this
+            # relations_ws.cell(row=row, column=col, value=node1name)
+            # relations_ws.cell(row=row, column=col + 1, value=node2name)
+            # relations_ws.cell(row=row, column=col + 2, value=label)
+            # relations_ws.cell(row=row, column=col + 3, value=id)
+            # relations_ws.cell(row=row, column=col + 4, value=group_name)
+            pass
+
+        elif type == "object_data":  # TODO: Implement this
+            pass
+
+    def gather_graph_stats(self):
+        return GraphStats(self)
+
+    def run_graph_rules(self, correct=None):
+        if correct == None:  #  ("auto", "manual")
+            correct = "manual"
+
+        stats = self.gather_graph_stats()
+
+        def stranded_edges_check(self, graph_stats, correct):
+            stranded_edges = set()
+            for edge_id, edge in graph_stats.all_edges.items():
+                node1_exist = edge.node1 in graph_stats.all_nodes.values()
+                node2_exist = edge.node2 in graph_stats.all_nodes.values()
+                stranded_edge = not node1_exist or not node2_exist
+                at_least_one_edge = node1_exist or node2_exist
+                if stranded_edge:
+                    stranded_edges.add(edge)
+
+            if correct == "auto":
+                for edge in stranded_edges:
+                    edge.parent.remove_edge()
+
+            elif correct == "manual":
+                # run relations and highlight edges with issues?
                 pass
 
-            elif type == "object_data":  # TODO: Implement this
-                pass
+            # offer review or update edges
+            return stranded_edges
+
+        stranded_edges = stranded_edges_check(self, stats, correct)
 
 
 # App related functions -------------------------
