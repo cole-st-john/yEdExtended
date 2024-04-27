@@ -1476,6 +1476,7 @@ class Graph:
         TEMP_EXCEL_SHEET = "test.xlsx"
 
         MANAGE_TYPES = {"obj_and_hierarchy", "object_data", "relations"}
+
         type = type or "obj_and_hierarchy"  # default
 
         # create workbook
@@ -1485,6 +1486,7 @@ class Graph:
         excel_ws = excel_wb.active
 
         # Extract objects ============================================
+        original_stats = self.gather_graph_stats()
         id_to_label = dict()
         id_to_obj = dict()
         OBJECTS_WS_NAME = "Objects_and_Groups"
@@ -1543,9 +1545,7 @@ class Graph:
             relations_ws = excel_wb.create_sheet(RELATIONS_WS_NAME, 1)
             row = 2
             col = 1
-            relations_ws.cell(
-                row=1, column=1, value="FORMAT -> NODE1 | NODE2 | EDGE_LABEL | EDGE_ID | GROUP_ID (OWNING EDGE)"
-            )
+            relations_ws.cell(row=1, column=1, value="FORMAT -> NODE1 | NODE2 | EDGE_LABEL | EDGE_ID ")
             obj_values = list(id_to_label.values())
             dup_objects = list(filter(lambda x: True if obj_values.count(x) > 1 else False, obj_values))
 
@@ -1743,19 +1743,80 @@ class Graph:
                 elif isinstance(obj, Node):  # node
                     parent.remove_node(obj_id)
 
-            # Run Checks
-            self.run_graph_rules()
-
         elif type == "relations":  # TODO: Implement this
-            # relations_ws.cell(row=row, column=col, value=node1name)
-            # relations_ws.cell(row=row, column=col + 1, value=node2name)
-            # relations_ws.cell(row=row, column=col + 2, value=label)
-            # relations_ws.cell(row=row, column=col + 3, value=id)
-            # relations_ws.cell(row=row, column=col + 4, value=group_name)
-            pass
+            # =node1name
+            # =node2name
+            # =label
+            # =id
+            relations_ws = excel_wb[RELATIONS_WS_NAME]
+            relations_data = relations_ws.values
+            row_length = None
+
+            count = 0
+            for row in relations_data:
+                if count == 0:
+                    row_length = len(row)
+                    count += 1
+                    continue
+                node1_id = None
+                node2_id = None
+                edge_label = None
+                edge_id = None
+
+                if row_length == 4:
+                    node1_id, node2_id, edge_label, edge_id = row
+                elif row_length == 3:
+                    node1_id, node2_id, edge_label = row
+                elif row_length == 2:
+                    node1_id, node2_id = row
+
+                edge_id = str(edge_id)
+
+                two_node_id_check = node1_id is not None and node2_id is not None
+                if not two_node_id_check:
+                    continue
+
+                id_assigned = edge_id is not None
+                label_check = edge_label is not None
+
+                id_exist = False
+                if id_assigned:
+                    id_exist = str(edge_id) in original_stats.all_edges.keys()
+
+                # modify
+                if id_exist:
+                    # make changes
+                    edge = original_stats.all_edges[edge_id]
+                    edge.node1_name = node1_id
+                    edge.node2_name = node2_id
+                    edge.label = edge_label
+
+                else:  # new
+                    # TODO: CHANGE THIS TO A DICTIOARY
+                    edge_init_dict = dict()
+                    edge_init_dict["node1_name"] = node1_id
+                    edge_init_dict["node2_name"] = node2_id
+                    edge_init_dict["label"] = edge_label
+                    edge_init_dict = {key: value for (key, value) in edge_init_dict.items() if value is not None}
+                    self.add_edge(**edge_init_dict)
+
+            # Deleted edges
+            # all_deleted_obj_ids = all_curr_obj_ids.difference(all_bulk_mod_ids)
+            # for obj_id in all_deleted_obj_ids:
+            #     obj: Group | Node = id_to_obj[obj_id]
+            #     parent = obj.parent or self
+            #     if isinstance(obj, Group):  # group
+            #         # find all immediate dependents and connect them to owner
+            #         parent.remove_group(obj_id)
+
+            #     elif isinstance(obj, Node):  # node
+            #         parent.remove_node(obj_id)
 
         elif type == "object_data":  # TODO: Implement this
             pass
+
+        # Run Checks
+        self.run_graph_rules()
 
     def gather_graph_stats(self) -> GraphStats:
         return GraphStats(self)
@@ -1781,7 +1842,7 @@ class Graph:
                     edge.parent.remove_edge(edge.edge_id)
 
             elif correct == "manual":
-                # run relations and highlight edges with issues?
+                # Excel - run relations and highlight edges with issues?
                 pass
 
             # offer review or update edges
