@@ -1,6 +1,7 @@
 # Extended Python Support for yEd 
 
 This Python library extends [yEd](http://www.yworks.com/en/products_yed_about.html) functionality through programmatic interface to graphs (of the [GraphML](http://graphml.graphdrawingraph1.org/) file format), including the following:
+
 - [x] creating graphs
 - [x] formatting graphs
 - [x] reading graphs
@@ -13,10 +14,13 @@ This Python library extends [yEd](http://www.yworks.com/en/products_yed_about.ht
 ![image](images/graph.gif)
 
 
-## Basic Usage
+# Basic Usage
+
 Below are some basic usages of yEdExtended in interfacing with yEd and GraphML files:
 
-### Installing yEdExtended
+
+## Installing yEdExtended
+
 From GITHUB
 ```console
 $ python -m pip install git+https://github.com/cole-st-john/yEdExtended
@@ -26,13 +30,15 @@ or *Coming soon, to PyPI!*
 $ pip install yedextended  
 ```
 
-### Importing yEdExtended for usage
+
+## Importing yEdExtended for usage
+
 ```python
 import yedextended as yed
 ```
 
 
-### Programmatically creating GraphML files
+## Programmatically creating GraphML files
 
 ```python
 # Instantiate graph instance
@@ -59,7 +65,7 @@ with open("examples/test.csv", encoding="utf-8-sig") as csv_file:
 ```
 
 
-### Using formatting
+## Using formatting
 
 ```python
 graph1.add_node(
@@ -107,7 +113,9 @@ graph1.add_edge(
 )
 ```
 
-### Manipulating data in MS Excel 
+
+## Manipulating data in MS Excel 
+
 ```python
 # Manage data in excel (add/remove/modify objects)
 graph1.manage_graph_data_in_excel() # default is object and hierachy management
@@ -116,23 +124,24 @@ graph1.manage_graph_data_in_excel() # default is object and hierachy management
 graph1.manage_graph_data_in_excel(type="relations")
 ```
 
-Adding Objects / Groups per Excel:
+### Adding Objects / Groups per Excel:
 
 ![Excel Object Entry](images/excel_obj_entry.gif)
 
-Result:
+### Result:
 
 ![Graph result of excel data entry](images/graph_from_excel_obj.gif)
 
-Adding Relationships per Excel:
+### Adding Relationships per Excel:
 
 ![Excel Relation Entry](images/excel_rel_entry.gif)
 
-Result:
+### Result:
 
 ![Graph result of excel relation entry](images/graph_from_excel_rel.gif)
 
-### Possible outputs of Graph
+
+## Possible outputs of Graph
 
 ```python
 # Demonstrate stringified GraphML version of structure
@@ -151,7 +160,9 @@ graph_file = graph1.persist_graph("pretty_example.graphml", pretty_print=True)  
 
 ```
 
-### Opening files in yEd Application *(assumes yEd installed and on PATH)*
+
+## Opening files in yEd Application *(assumes yEd installed and on PATH)*
+
 ```python
 # From existing handle
 graph_file.open_with_yed(force=True)
@@ -160,19 +171,23 @@ graph_file.open_with_yed(force=True)
 yed.open_yed_file("examples/test.graphml")
 ```
 
-### Visualizing in yEd Application (Layout)
+
+## Visualizing in yEd Application (Layout)
+
 Following programmatic creation or modification of a graph, consider using the following keystrokes in yEd to visualize:
+
 - ``Tools -> Fit Node to Label``  (_Win: Alt + T + N_)
 - ``Layout -> Hierarchical``  (_Win: Alt + Shift + H_)
 
 
-## Options
+# Options
 
 Provides comprehensive support for ``node_shapes``, ``line_types``, ``font_styles``, ``arrow_types``, custom parameters, UML, complex and deeply nested relationship structures and more.
 
-![UML DIAGRAM](images/example-UML.png)
 
-## Development
+
+# Development
+
 
 Interested in contributing or co-managing further development?  Just reach out!
 
