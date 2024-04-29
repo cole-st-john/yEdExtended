@@ -174,7 +174,7 @@ yed.open_yed_file("examples/test.graphml")
 
 ## Visualizing in yEd Application (Layout)
 
-Following programmatic creation or modification of a graph, consider using the following keystrokes in yEd to visualize:
+Following programmatic creation or modification of a graph, consider using the following keystrokes in yEd to improve layout / positioning:
 
 - ``Tools -> Fit Node to Label``  (_Win: Alt + T + N_)
 - ``Layout -> Hierarchical``  (_Win: Alt + Shift + H_)
