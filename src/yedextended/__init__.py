@@ -1,8 +1,10 @@
 """Python library extending yEd functionality through programmatic interface to graphs.
 
-Currently primarily supports building of yEd graph objects from scratch.
-
-Planned is the addition of read, management and other capabilities.
+Currently supports...
+* Building of yEd graph objects from scratch
+* Reading of yEd graph files
+* Management of yEd graph data in Excel (for simplified addition / management of data)
+* Opening and basic control of yEd application
 
 """
 
@@ -63,26 +65,24 @@ CUSTOM_PROPERTY_TYPES = [
 ]
 
 
-class InvalidValueError(ValueError):
-    pass  # FIXME:
-
-
 def checkValue(
     parameter_name: str,
     value: Any,
     validValues: Optional[List[str]] = None,
 ) -> None:
-    """Check whether given graph property inputs
+    """Check whether given inputs
     (e.g. Shape, Arrow type, Line type, etc.)
     are valid (within existing enumerated options).
     If not valid - returns error message for input."""
 
     if validValues:
         if value not in validValues:
-            raise InvalidValueError(f"{parameter_name} '{value}' is not supported. Use: '{', '.join(validValues)}'")
+            raise ValueError(f"{parameter_name} '{value}' is not supported. Use: '{', '.join(validValues)}'")
 
 
 class File:
+    """Object to pass around, check and act on yEd files / filepaths."""
+
     def __init__(self, file_name_or_path=None):
         self.DEFAULT_FILE_NAME = "temp"
         self.EXTENSION = ".graphml"
@@ -93,12 +93,14 @@ class File:
         self.file_exists = os.path.isfile(self.fullpath)
 
     def path_validate(self, temp_name_or_path=None):
+        """Validate if the file was initialized with valid path - returning the same path - if not valid, return working directory as default path."""
         path = ""
         if temp_name_or_path:
             path = os.path.dirname(temp_name_or_path)
         return path or os.getcwd()
 
     def base_name_validate(self, temp_name_or_path=None):
+        """Validate / Build valid file name with GraphML extension"""
         temp_name = ""
         if temp_name_or_path:
             temp_name = os.path.basename(temp_name_or_path)
@@ -108,6 +110,7 @@ class File:
         return temp_name
 
     def open_with_yed(self, force=False):
+        """Method to open GraphML file directly with yEd application (must be installed and on path)."""
         print("opening...")
         open_yed_file(self, force)
 
@@ -498,7 +501,6 @@ class Group:
 
     def remove_node(self, node_name) -> None:
         """Remove/Delete a node from a group"""
-        # TODO: Act on stranded edges
         if node_name not in self.nodes:
             raise RuntimeWarning("Node %s doesn't exist" % node_name)
         del self.nodes[node_name]
@@ -506,7 +508,6 @@ class Group:
 
     def remove_group(self, group_id) -> None:
         """Removes a group from within current group object (and same parent graph)."""
-        # TODO: Reroute sub nodes, groups and edges (and namings)
         if group_id not in self.groups:
             raise RuntimeWarning("Group %s doesn't exist" % group_id)
         group = self.groups[group_id]
@@ -517,14 +518,15 @@ class Group:
             self.nodes[node.node_name] = node  # reassign parent: group side
 
         for edge in group.edges.values():
-            # edge.parent = self  #reassign parent: edge side
-            self.edges[edge.edge_id] = edge  # reassign parent: group side #FIXME: REEXAMINE ID
+            edge.parent = self  # reassign parent: edge side
+            self.edges[edge.edge_id] = edge  # reassign parent: group side
 
         for group in group.groups.values():
             # edge.parent = self  #reassign parent: edge side
             group.parent = self
             self.groups[group.group_id] = group  # reassign parent: group side
 
+        # remove records
         del self.groups[group_id]
         del self.parent_graph.existing_entities[group_id]
 
@@ -956,6 +958,8 @@ class Edge:
 
 
 class GraphStats:
+    """Object to query and carry complete structure of current (recursive) graph objects and relationships."""
+
     def __init__(self, graph_or_input_node):
         self.all_nodes = dict()
         self.all_groups = dict()
@@ -963,6 +967,7 @@ class GraphStats:
         self.recursive_id_extract(graph_or_input_node)
 
     def recursive_id_extract(self, graph_or_input_node):
+        """Gather complete structure of current (recursive) graph objects and relationships."""
         sub_nodes = graph_or_input_node.nodes.values()
         sub_groups = graph_or_input_node.groups.values()
         sub_edges = graph_or_input_node.edges.values()
@@ -1055,7 +1060,6 @@ class Graph:
     # Removal of items ==============================
     def remove_node(self, node_name) -> None:
         """Remove/Delete a node from graph"""
-        # TODO: Act on stranded edges
         if node_name not in self.existing_entities:
             raise RuntimeWarning("Node %s doesn't exist" % node_name)
         del self.nodes[node_name]
@@ -1063,7 +1067,6 @@ class Graph:
 
     def remove_group(self, group_id):
         """Removes a group from within current group object (and same parent graph)."""
-        # TODO: Reroute sub nodes, groups and edges (and namings)
         if group_id not in self.existing_entities:
             raise RuntimeWarning("Group %s doesn't exist" % group_id)
 
@@ -1073,14 +1076,14 @@ class Graph:
             self.nodes[node.node_name] = node  # reassign parent: group side
 
         for edge in self.edges.values():
-            # edge.parent = self  #reassign parent: edge side
-            self.edges[edge.edge_id] = edge  # reassign parent: group side #FIXME: REEXAMINE ID
+            edge.parent = self  # reassign parent: edge side
+            self.edges[edge.edge_id] = edge  # reassign parent: group/graph side
 
         for group in self.groups.values():
-            # edge.parent = self  #reassign parent: edge side
             group.parent = self
             self.groups[group.group_id] = group  # reassign parent: group side
 
+        # eliminate records
         del self.groups[group_id]
         del self.existing_entities[group_id]
 
@@ -1188,7 +1191,7 @@ class Graph:
         return graph_file
 
     def stringify_graph(self):
-        """Stringified version of graph in graphml format"""
+        """Returns Stringified version of graph in graphml format"""
         self.construct_graphml()
         # Py2/3 sigh.
         if sys.version_info.major < 3:
@@ -1197,7 +1200,7 @@ class Graph:
             return ET.tostring(self.graphml, encoding="UTF-8").decode()
 
     def from_existing_graph(self, file: str | File):
-        """Parse xml of existing/stored graph file into python"""
+        """Parse GraphML xml of existing/stored graph file into python Graph structure."""
 
         # Manage file input ==============================
         if isinstance(file, File):
@@ -1380,9 +1383,8 @@ class Graph:
                                 if info_type in ["url", "description"]:
                                     group_init_dict[info_type] = info
 
-                    # Group - Graph node # TODO:
+                    # Group - Graph node
                     sub_graph_node = node.find("graph")
-                    # graph_id = sub_graph_node.get("id")
 
                     # Removing empty items
                     group_init_dict = {key: value for (key, value) in group_init_dict.items() if value is not None}
@@ -1394,8 +1396,6 @@ class Graph:
                     if sub_graph_node is not None:
                         process_node(parent=new_group, input_node=sub_graph_node)
 
-                    # parse_graph_node(graph_node)
-
                 # unknown node type
                 else:
                     raise NotImplementedError
@@ -1405,9 +1405,7 @@ class Graph:
                 edge_init_dict = dict()
 
                 # <node id="n1">
-                edge_init_dict["edge_id"] = edge_node.attrib.get(
-                    "id", None
-                )  # FIXME: THIS LIKELY NEEDS HELP - GROUP IDS FROM YED PRODUCED FILES LIKE n2::n1
+                edge_init_dict["edge_id"] = edge_node.attrib.get("id", None)
                 edge_init_dict["node1_id"] = edge_node.attrib.get("source", None)
                 edge_init_dict["node2_id"] = edge_node.attrib.get("target", None)
 
@@ -1470,7 +1468,7 @@ class Graph:
         return new_graph
 
     def manage_graph_data_in_excel(self, type=None):
-        """Displaying groups, nodes, edges in list format"""
+        """Port graph data into Excel in several formats for easy and bulk creation and management.  Then ports back into python graph structure."""
 
         TEMP_EXCEL_SHEET = "test.xlsx"
 
@@ -1629,7 +1627,7 @@ class Graph:
             # identifying groups
             num_items = len(obj_data)
             group_identifiers = list(map(lambda x: 1 if indent[x + 1] > indent[x] else 0, range(0, num_items - 1)))
-            group_identifiers.append(0)  # FIXME: small limitation - deepest or last cannot be group
+            group_identifiers.append(0)  # small limitation - deepest or last cannot be group
 
             # identifying ownership
             owner = dict()
@@ -1646,7 +1644,7 @@ class Graph:
 
             # of format: label|id (optional)
 
-            # identifying last used Id # TODO: NEEDS REFACTORING - ID COUNTING IS PER OWNER
+            # identifying last used Id # TODO: NEEDS REFACTORING - ID COUNTING in yEd IS PER OWNER
             ids = sorted(id_to_label)
             if ids:
                 last_id = ids[-1]
@@ -1819,7 +1817,6 @@ class Graph:
                         raise NameError(f"Node {node2_id} not found.")
 
                 else:  # new / id not existing
-                    # TODO: CHANGE THIS TO A DICTIOARY
                     edge_init_dict = dict()
                     edge_init_dict["node1_id"] = node1_id
                     edge_init_dict["node2_id"] = node2_id
@@ -1836,22 +1833,24 @@ class Graph:
                 parent.remove_edge(del_edge_id)
 
         elif type == "object_data":  # TODO: Implement management of deeper data - url, description, formatting
-            pass
+            raise NotImplementedError("This functionality is not yet implemented.")
 
         # Run Checks
         self.run_graph_rules()
 
     def gather_graph_stats(self) -> GraphStats:
+        """Creating current Graph Stats for the current graph"""
         return GraphStats(self)
 
     def run_graph_rules(self, correct=None):
-        """Check a few key items that are most likely to fail"""
+        """Check a few graph items that are most likely to fail following manual data management."""
         if correct is None:  #  ("auto", "manual")
             correct = "auto"
 
         stats = self.gather_graph_stats()
 
         def stranded_edges_check(self, graph_stats, correct):
+            """Check for edges with no longer valid nodes (these will prevent yEd from opening the file).  Correct them automatically or manually."""
             stranded_edges = set()
             for edge_id, edge in graph_stats.all_edges.items():
                 node1_exist = edge.node1 in graph_stats.all_nodes.keys() or edge.node1 in graph_stats.all_groups.keys()
@@ -1867,7 +1866,7 @@ class Graph:
 
             elif correct == "manual":
                 # Excel - run relations and highlight edges with issues?
-                pass
+                raise NotImplementedError("Manual correction of stranded edges is not yet implemented.")
 
             # offer review or update edges
             return stranded_edges
@@ -1877,7 +1876,7 @@ class Graph:
 
 # App related functions ===========================
 def is_yed_findable():
-    """Find yed exe path locally"""
+    """Find yEd exe path locally"""
     path = which(PROGRAM_NAME) or None
     yed_found_bool = path is not None
     if not yed_found_bool:
@@ -1889,6 +1888,7 @@ def is_yed_findable():
 
 
 def get_yed_pid():
+    """Return process id for yEd application or None if not running"""
     pid = None
     for process in psutil.process_iter(["name"]):
         if process.info["name"] == PROGRAM_NAME:
@@ -1898,6 +1898,7 @@ def get_yed_pid():
 
 
 def get_yed_process():
+    """Return process object for yEd application, if there is one running."""
     process = None
     for process_iter in psutil.process_iter(["name"]):
         if process_iter.info["name"] == PROGRAM_NAME:
@@ -1912,7 +1913,7 @@ def is_yed_open() -> bool:
 
 
 def _maximize(file=None) -> None:
-    """Maximize/show the yed app (for particular file) - if found."""
+    """Maximize/show the yEd app (for particular file) - if found. Not currently robust."""
 
     window = get_yed_graph_window_id(file)
 
@@ -1923,7 +1924,7 @@ def _maximize(file=None) -> None:
 
 
 def get_yed_graph_window_id(file: File | None):
-    """Retrieve handle of yed window containing file"""
+    """Retrieve handle of yEd window containing file"""
     APP_NAME = "yEd"
     window = None
     if not file:
@@ -1973,6 +1974,7 @@ def start_yed() -> None:
 
 # Utilities =======================================
 def xml_to_simple_string(file_path) -> str:
+    """Takes GraphML xml in string format and reduces complexity of the string for simpler parsing (without loss of any significant information).  Returns simplified string."""
     try:
         with open(file_path, "r") as graph_file:
             graph_str = graph_file.read()
