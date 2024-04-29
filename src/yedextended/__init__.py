@@ -12,15 +12,14 @@ import re
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass, field  # FIXME: to be incorporated
 from shutil import which
 from tkinter import messagebox as msg
 from typing import Any, List, Optional
 from xml.dom import minidom
 
+import openpyxl as pyxl
 import psutil
 import pygetwindow as gw
-import openpyxl as pyxl
 
 # Enumerated parameters / Constants
 PROGRAM_NAME = "yEd.exe"
@@ -475,24 +474,24 @@ class Group:
         self.parent_graph.existing_entities[group_id] = group
         return group
 
-    def add_edge(self, node1_name, node2_name, **kwargs):
+    def add_edge(self, node1_id, node2_id, **kwargs):
         """Adds edge - input: node names, not actual node objects"""
         # TODO: DO EDGES NEED A PARENT FOR EASE OF OPERATIONS
 
-        node1 = self.parent_graph.existing_entities.get(node1_name) or self.add_node(node1_name)
+        node1 = self.parent_graph.existing_entities.get(node1_id) or self.add_node(node1_id)
 
-        node2 = self.parent_graph.existing_entities.get(node2_name) or self.add_node(node2_name)
+        node2 = self.parent_graph.existing_entities.get(node2_id) or self.add_node(node2_id)
 
         # http://graphml.graphdrawing.org/primer/graphml-primer.html#Nested
         # The edges between two nodes in a nested graph have to be declared in a graph,
         # which is an ancestor of both nodes in the hierarchy.
 
         if not (self.is_ancestor(node1) and self.is_ancestor(node2)):
-            raise RuntimeWarning("Group %s is not ancestor of both %s and %s" % (self.group_id, node1_name, node2_name))
+            raise RuntimeWarning("Group %s is not ancestor of both %s and %s" % (self.group_id, node1_id, node2_id))
 
         self.parent_graph.num_edges += 1
         kwargs["edge_id"] = str(self.parent_graph.num_edges)
-        edge = Edge(node1_name, node2_name, **kwargs)
+        edge = Edge(node1_id, node2_id, **kwargs)
         edge.parent = self
         self.edges[edge.edge_id] = edge
         return edge
@@ -1014,16 +1013,16 @@ class Graph:
         self.existing_entities[node_name] = node
         return node
 
-    def add_edge(self, node1_name, node2_name, **kwargs):
+    def add_edge(self, node1_id, node2_id, **kwargs):
         """Adding edge to graph - uses node names not node objects."""
 
         # Ensuring nodes are existing at time of edge creation (error avoidance) - dont need assignments
-        node1 = self.existing_entities.get(node1_name) or self.add_node(node1_name)
-        node2 = self.existing_entities.get(node2_name) or self.add_node(node2_name)
+        node1 = self.existing_entities.get(node1_id) or self.add_node(node1_id)
+        node2 = self.existing_entities.get(node2_id) or self.add_node(node2_id)
 
         self.num_edges += 1
         kwargs["edge_id"] = str(self.num_edges)
-        edge = Edge(node1_name, node2_name, **kwargs)
+        edge = Edge(node1_id, node2_id, **kwargs)
         self.edges[edge.edge_id] = edge
         edge.parent = self
         return edge
@@ -1409,8 +1408,8 @@ class Graph:
                 edge_init_dict["edge_id"] = edge_node.attrib.get(
                     "id", None
                 )  # FIXME: THIS LIKELY NEEDS HELP - GROUP IDS FROM YED PRODUCED FILES LIKE n2::n1
-                edge_init_dict["node1_name"] = edge_node.attrib.get("source", None)
-                edge_init_dict["node2_name"] = edge_node.attrib.get("target", None)
+                edge_init_dict["node1_id"] = edge_node.attrib.get("source", None)
+                edge_init_dict["node2_id"] = edge_node.attrib.get("target", None)
 
                 # <data key="d5">
                 data_nodes = edge_node.findall("data")
@@ -1470,7 +1469,7 @@ class Graph:
 
         return new_graph
 
-    def manage_graph_data_in_excel(self, type=None) -> None:
+    def manage_graph_data_in_excel(self, type=None):
         """Displaying groups, nodes, edges in list format"""
 
         TEMP_EXCEL_SHEET = "test.xlsx"
@@ -1546,6 +1545,7 @@ class Graph:
             row = 2
             col = 1
             relations_ws.cell(row=1, column=1, value="FORMAT -> NODE1 | NODE2 | EDGE_LABEL | EDGE_ID ")
+            obj_keys = list(id_to_label.keys())
             obj_values = list(id_to_label.values())
             dup_objects = list(filter(lambda x: True if obj_values.count(x) > 1 else False, obj_values))
 
@@ -1744,13 +1744,15 @@ class Graph:
                     parent.remove_node(obj_id)
 
         elif type == "relations":  # TODO: Implement this
-            # =node1name
-            # =node2name
-            # =label
-            # =id
+            # Columns
+            # node1name
+            # node2name
+            # label
+            # id
             relations_ws = excel_wb[RELATIONS_WS_NAME]
             relations_data = relations_ws.values
             row_length = None
+            edge_ids_after_mod = set()
 
             count = 0
             for row in relations_data:
@@ -1758,21 +1760,21 @@ class Graph:
                     row_length = len(row)
                     count += 1
                     continue
-                node1_id = None
-                node2_id = None
+                node1_name = None
+                node2_name = None
                 edge_label = None
                 edge_id = None
 
                 if row_length == 4:
-                    node1_id, node2_id, edge_label, edge_id = row
+                    node1_name, node2_name, edge_label, edge_id = row
                 elif row_length == 3:
-                    node1_id, node2_id, edge_label = row
+                    node1_name, node2_name, edge_label = row
                 elif row_length == 2:
-                    node1_id, node2_id = row
+                    node1_name, node2_name = row
 
                 edge_id = str(edge_id)
 
-                two_node_id_check = node1_id is not None and node2_id is not None
+                two_node_id_check = node1_name is not None and node2_name is not None
                 if not two_node_id_check:
                     continue
 
@@ -1783,36 +1785,57 @@ class Graph:
                 if id_assigned:
                     id_exist = str(edge_id) in original_stats.all_edges.keys()
 
+                node1_found = node1_name in obj_values
+                node1_dedup_req = node1_name in dup_objects
+                if node1_found and not node1_dedup_req:
+                    node1_id = obj_keys[obj_values.index(node1_name)]
+                # TODO: ADD LOGIC FOR node1_found and node1_dedup_req
+
+                node2_found = node2_name in obj_values
+                node2_dedup_req = node2_name in dup_objects
+                if node2_found and not node2_dedup_req:
+                    node2_id = obj_keys[obj_values.index(node2_name)]
+                # TODO: ADD LOGIC FOR node2_found and node2_dedup_req
+
+                nodes_found = False
+                if node1_id and node2_id:
+                    nodes_found = True
+
                 # modify
-                if id_exist:
-                    # make changes
+                if id_exist and nodes_found:
+                    # make changes - but only if nodes are found
                     edge = original_stats.all_edges[edge_id]
-                    edge.node1_name = node1_id
-                    edge.node2_name = node2_id
+                    edge.node1_id = node1_id
+                    edge.node2_id = node2_id
                     edge.label = edge_label
 
-                else:  # new
+                    # keep track of edges that were existing and still existing
+                    edge_ids_after_mod.add(edge.edge_id)
+
+                elif not nodes_found:
+                    if not node1_found:
+                        raise NameError(f"Node {node1_id} not found.")
+                    if not node2_found:
+                        raise NameError(f"Node {node2_id} not found.")
+
+                else:  # new / id not existing
                     # TODO: CHANGE THIS TO A DICTIOARY
                     edge_init_dict = dict()
-                    edge_init_dict["node1_name"] = node1_id
-                    edge_init_dict["node2_name"] = node2_id
+                    edge_init_dict["node1_id"] = node1_id
+                    edge_init_dict["node2_id"] = node2_id
                     edge_init_dict["label"] = edge_label
                     edge_init_dict = {key: value for (key, value) in edge_init_dict.items() if value is not None}
                     self.add_edge(**edge_init_dict)
 
-            # Deleted edges
-            # all_deleted_obj_ids = all_curr_obj_ids.difference(all_bulk_mod_ids)
-            # for obj_id in all_deleted_obj_ids:
-            #     obj: Group | Node = id_to_obj[obj_id]
-            #     parent = obj.parent or self
-            #     if isinstance(obj, Group):  # group
-            #         # find all immediate dependents and connect them to owner
-            #         parent.remove_group(obj_id)
+            # Deleting edges that have been deleted
+            all_bulk_edge_ids = set(list(original_stats.all_edges.keys()))
+            all_deleted_edge_ids = all_bulk_edge_ids.difference(edge_ids_after_mod)
+            for del_edge_id in all_deleted_edge_ids:
+                obj: Edge = original_stats.all_edges[del_edge_id]
+                parent = obj.parent or self
+                parent.remove_edge(del_edge_id)
 
-            #     elif isinstance(obj, Node):  # node
-            #         parent.remove_node(obj_id)
-
-        elif type == "object_data":  # TODO: Implement this
+        elif type == "object_data":  # TODO: Implement management of deeper data - url, description, formatting
             pass
 
         # Run Checks
@@ -1822,6 +1845,7 @@ class Graph:
         return GraphStats(self)
 
     def run_graph_rules(self, correct=None):
+        """Check a few key items that are most likely to fail"""
         if correct is None:  #  ("auto", "manual")
             correct = "auto"
 
@@ -1830,8 +1854,8 @@ class Graph:
         def stranded_edges_check(self, graph_stats, correct):
             stranded_edges = set()
             for edge_id, edge in graph_stats.all_edges.items():
-                node1_exist = edge.node1 in graph_stats.all_nodes.keys()
-                node2_exist = edge.node2 in graph_stats.all_nodes.keys()
+                node1_exist = edge.node1 in graph_stats.all_nodes.keys() or edge.node1 in graph_stats.all_groups.keys()
+                node2_exist = edge.node2 in graph_stats.all_nodes.keys() or edge.node2 in graph_stats.all_groups.keys()
                 stranded_edge = not node1_exist or not node2_exist
                 at_least_one_edge = node1_exist or node2_exist
                 if stranded_edge:
