@@ -58,16 +58,26 @@ group1.add_edge("c", "d")
 
 ```python
 # Adding graph objects based on csv input
+import csv
 with open("examples/test.csv", encoding="utf-8-sig") as csv_file: 
 	csv_reader = csv.reader(csv_file)
 	for row in csv_reader:
 	    graph1.add_node(row)
 ```
 
+## Reading existing GraphML files
+
+```python
+# Read graph file into python graph objects
+graph1 = yed.Graph().from_existing_graph("examples/yed_created_edges.graphml")
+
+```
+
 
 ## Using formatting
 
 ```python
+# Add graph nodes and edges with some examples of non-default formatting
 graph1.add_node(
     "foo",
     font_family="Zapfino",
