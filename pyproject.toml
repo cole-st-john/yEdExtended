@@ -4,7 +4,7 @@ version = "0.0.1"
 authors = [{ name = "Cole St John", email = "info@colestjohn.com" }]
 description = "Python library extending yEd functionality through programmatic interface to graphs."
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 dependencies = ["psutil", "pygetwindow", "openpyxl"]
 classifiers = [
 	"Programming Language :: Python :: 3",
