@@ -1,6 +1,6 @@
 [project]
 name = "yedextended"
-version = "0.0.1"
+version = "1.0.0"
 authors = [{ name = "Cole St John", email = "info@colestjohn.com" }]
 description = "Python library extending yEd functionality through programmatic interface to graphs."
 readme = "README.md"
