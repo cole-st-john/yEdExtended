@@ -2,9 +2,13 @@
 Demo script for utilising the yedextended "Adding URL & Description for Group, Node and Edge Elements" feature.
 """
 
+# import
 import yedextended as yed
 
+# instantiate graph
 graph1 = yed.Graph()
+
+# Demonstration of urls / descriptions on various objects ======================
 
 # Create GroupNode
 italy = graph1.add_group(
@@ -62,9 +66,7 @@ italy.add_edge(
 )
 
 # Write Graph
-graph1.persist_graph(
-    "demo-url-description-groups-nodes-edges.graphml", pretty_print=True
-).open_with_yed()
+graph1.persist_graph("demo-url-description-groups-nodes-edges.graphml", pretty_print=True).open_with_yed()
 
 print(40 * "=")
 print("""

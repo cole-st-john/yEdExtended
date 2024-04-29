@@ -1,6 +1,10 @@
+# import
 import yedextended as yed
 
+# instantiate graph
 graph1 = yed.Graph()
+
+# Demonstration of some UML objects =========================================
 graph1.add_node(
     "Car",
     shape_fill="#EEEEEE",
@@ -29,6 +33,5 @@ graph1.add_edge("Car", "ICar", arrowhead="white_delta", line_type="dashed")
 
 graph1.add_node("This is a note", shape_fill="#EEEEEE", node_type="UMLNoteNode")
 
-# print(graph1.stringify_graph())
-
+# Store Graph
 graph1.persist_graph("demo-uml.graphml")

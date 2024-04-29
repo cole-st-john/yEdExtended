@@ -3,12 +3,12 @@ import yedextended as yed
 # Instantiate graph
 graph1 = yed.Graph()
 
-# Add arbitrary graph detail
+# Add arbitrary graph detail - nodes and edges
 graph1.add_node("a")
 graph1.add_node("b")
 graph1.add_edge("a", "b")
 
-# Add arbitrary graph group detail
+# Add arbitrary graph detail - group and group objects
 group1 = graph1.add_group("group 1", shape="rectangle")
 group1.add_node("c")
 group1.add_node("d")
@@ -23,10 +23,10 @@ group1_1.add_node("f")
 group1_1.add_edge("e", "f")
 
 # Complex connections ==============
-# standalone node to 2-time nested node
+# Standalone node to 2-layer-nested node
 graph1.add_edge("a", "e")
-# node to subnested group
+# Standalone node to subnested group
 graph1.add_edge("b", "group1_1")
 
 # Storing a graph to file and opening it
-graph_file = graph1.persist_graph("test.graphml", overwrite=True).open_with_yed(force=True)
+graph_file = graph1.persist_graph("test.graphml", overwrite=True).open_with_yed()
