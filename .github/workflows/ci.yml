@@ -65,7 +65,7 @@ jobs:
         git commit -m "Update test coverage badge\n\n${coverage_output}"
         
         # Push the changes to the main branch
-        git push origin main
+        git push origin master
         
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
