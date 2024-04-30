@@ -48,9 +48,10 @@ jobs:
 
     - name: Generate and commit coverage report
       id: coverage-report
+      if: matrix.python-version == '3.12'  # Execute only if Python version is 3.12
       run: |
         # Run coverage report and capture the output
-        $coverage_output = coverage report -m
+        coverage_output=$(coverage report -m)
         # Generate the SVG coverage badge
         coverage-badge -o test_coverage.svg -f
         
