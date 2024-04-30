@@ -1,13 +1,16 @@
 [project]
 name = "yedextended"
-version = "1.0.2"
+dynamic = ["version"]
 authors = [{ name = "Cole St John", email = "info@colestjohn.com" }]
 description = "Python library extending yEd functionality through programmatic interface to graphs."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = ["psutil", "pygetwindow", "openpyxl"]
 classifiers = [
-	"Programming Language :: Python :: 3",
+	"Programming Language :: Python :: 3 :: Only",
+	"Programming Language :: Python :: 3.10",
+	"Programming Language :: Python :: 3.11",
+	"Programming Language :: Python :: 3.12",
 	"License :: OSI Approved :: BSD License",
 	"Operating System :: OS Independent",
 ]

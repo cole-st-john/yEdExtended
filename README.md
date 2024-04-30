@@ -1,4 +1,11 @@
+
+
+
 # Extended Python Support for yEd 
+[![CI](https://github.com/cole-st-john/yEdExtended/actions/workflows/ci.yml/badge.svg)](https://github.com/cole-st-john/yEdExtended/actions/workflows/ci.yml)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/yedextended?color=2334D058)
+![GitHub commit activity](https://img.shields.io/github/commit-activity/w/cole-st-john/yedextended)
+<!-- ![PyPI - Downloads](https://img.shields.io/pypi/dm/yedextended?labelColor=2334D058) -->
 
 This Python library extends [yEd](http://www.yworks.com/en/products_yed_about.html) functionality through programmatic interface to graphs (of the [GraphML](http://graphml.graphdrawingraph1.org/) file format), including the following:
 
