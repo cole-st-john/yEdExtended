@@ -55,8 +55,8 @@ jobs:
         coverage-badge -o test_coverage.svg -f
         
         # Configure Git with the author information
-        git config --local user.email "$user_email"
-        git config --local user.name "$user_name"
+        git config --global user.email "info@colestjohn.com"
+        git config --global user.name "cole-st-john"
         
         # Add the test_coverage.svg file to the repository
         git add test_coverage.svg
