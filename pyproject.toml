@@ -21,7 +21,7 @@ Homepage = "https://github.com/cole-st-john/yedextended"
 Issues = "https://github.com/cole-st-john/yedextended/issues"
 
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=61.0", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [tool.ruff]
