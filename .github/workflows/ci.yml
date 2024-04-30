@@ -50,7 +50,7 @@ jobs:
       id: coverage-report
       run: |
         # Run coverage report and capture the output
-        coverage_output = coverage report -m
+        $coverage_output = coverage report -m
         # Generate the SVG coverage badge
         coverage-badge -o test_coverage.svg -f
         # Add the test_coverage.svg file to the repository
