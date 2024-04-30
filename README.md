@@ -11,7 +11,7 @@ This Python library extends [yEd](http://www.yworks.com/en/products_yed_about.ht
 - [ ] addition of standard sorting methods
 - [ ] graph comparison tools
 
-![image](images/graph.gif)
+![yEd Graph](https://raw.githubusercontent.com/cole-st-john/yedextended/master/images/graph.gif)
 
 
 # Basic Usage
@@ -136,19 +136,19 @@ graph1.manage_graph_data_in_excel(type="relations")
 
 ### Adding Objects / Groups per Excel:
 
-![Excel Object Entry](images/excel_obj_entry.gif)
+![Excel Object Entry](https://raw.githubusercontent.com/cole-st-john/yedextended/master/images/excel_obj_entry.gif)
 
 ### Result:
 
-![Graph result of excel data entry](images/graph_from_excel_obj.gif)
+![Graph result of excel data entry](https://raw.githubusercontent.com/cole-st-john/yedextended/master/images/graph_from_excel_obj.gif)
 
 ### Adding Relationships per Excel:
 
-![Excel Relation Entry](images/excel_rel_entry.gif)
+![Excel Relation Entry](https://raw.githubusercontent.com/cole-st-john/yedextended/master/images/excel_rel_entry.gif)
 
 ### Result:
 
-![Graph result of excel relation entry](images/graph_from_excel_rel.gif)
+![Graph result of excel relation entry](https://raw.githubusercontent.com/cole-st-john/yedextended/master/images/graph_from_excel_rel.gif)
 
 
 ## Possible outputs of Graph
