@@ -28,15 +28,15 @@ Below are some basic usages of yEdExtended in interfacing with yEd and GraphML f
 
 
 ## Installing yEdExtended
-
-From GITHUB
-```console
-$ python -m pip install git+https://github.com/cole-st-john/yEdExtended
-```
-or *Coming soon, to PyPI!*
+From Pypi, using pip:
 ```console
 $ pip install yedextended  
 ```
+Or from GITHUB:
+```console
+$ python -m pip install git+https://github.com/cole-st-john/yEdExtended
+```
+
 
 
 ## Importing yEdExtended for usage
