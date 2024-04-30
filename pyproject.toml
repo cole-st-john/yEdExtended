@@ -24,6 +24,8 @@ Issues = "https://github.com/cole-st-john/yedextended/issues"
 requires = ["setuptools>=61.0", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools_scm]
+
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
 exclude = [
