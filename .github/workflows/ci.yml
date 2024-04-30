@@ -51,7 +51,7 @@ jobs:
       if: matrix.python-version == '3.12'  # Execute only if Python version is 3.12
       run: |
         # Run coverage report and capture the output
-        coverage_output=$(coverage report -m)
+        $coverage_output = coverage report -m
         # Generate the SVG coverage badge
         coverage-badge -o test_coverage.svg -f
         
@@ -63,7 +63,7 @@ jobs:
         git add test_coverage.svg
         
         # Commit the file with a message that includes the coverage output
-        git commit -m "Update test coverage badge\n\n${coverage_output}"
+        git commit -m "Update test coverage badge -  ${coverage_output}"
         
         # Push the changes to the main branch
         git push origin master
