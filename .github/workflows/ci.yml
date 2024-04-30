@@ -53,11 +53,19 @@ jobs:
         $coverage_output = coverage report -m
         # Generate the SVG coverage badge
         coverage-badge -o test_coverage.svg -f
+        
+        # Configure Git with the author information
+        git config --local user.email "$user_email"
+        git config --local user.name "$user_name"
+        
         # Add the test_coverage.svg file to the repository
         git add test_coverage.svg
+        
         # Commit the file with a message that includes the coverage output
         git commit -m "Update test coverage badge\n\n${coverage_output}"
+        
         # Push the changes to the main branch
         git push origin main
+        
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
