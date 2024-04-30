@@ -3,6 +3,7 @@
 
 # Extended Python Support for yEd 
 [![CI](https://github.com/cole-st-john/yEdExtended/actions/workflows/ci.yml/badge.svg)](https://github.com/cole-st-john/yEdExtended/actions/workflows/ci.yml)
+![Test Coverage](https://raw.githubusercontent.com/cole-st-john/yedextended/master/test_coverage.svg)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/yedextended?color=2334D058)
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/w/cole-st-john/yedextended)
 <!-- ![PyPI - Downloads](https://img.shields.io/pypi/dm/yedextended?labelColor=2334D058) -->
@@ -179,6 +180,8 @@ graph_file = graph1.persist_graph("pretty_example.graphml", pretty_print=True)  
 
 
 ## Opening files in yEd Application *(assumes yEd installed and on PATH)*
+
+First install yEd application from [here](https://www.yworks.com/products/yed/download#download).
 
 ```python
 # From existing handle
