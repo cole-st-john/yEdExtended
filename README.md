@@ -8,7 +8,7 @@
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/w/cole-st-john/yedextended)
 <!-- ![PyPI - Downloads](https://img.shields.io/pypi/dm/yedextended?labelColor=2334D058) -->
 
-This Python library extends [yEd](http://www.yworks.com/en/products_yed_about.html) functionality through programmatic interface to graphs (of the [GraphML](http://graphml.graphdrawingraph1.org/) file format), including the following:
+This Python library extends the functionality of the readily available and free interactive graph editing program [yEd](http://www.yworks.com/en/products_yed_about.html), through providing a programmatic interface to graphs (of the [GraphML](http://graphml.graphdrawingraph1.org/) file format), including the following use case or functions:
 
 - [x] creating graphs
 - [x] formatting graphs
@@ -16,7 +16,7 @@ This Python library extends [yEd](http://www.yworks.com/en/products_yed_about.ht
 - [x] bulk data addition or management (MS excel-based)
 - [x] management of the yEd application (starting, killing, maximizing)
 - [ ] enforcing rules on graphs
-- [ ] addition of standard sorting methods
+- [ ] additional layout methods
 - [ ] graph comparison tools
 
 ![yEd Graph](https://raw.githubusercontent.com/cole-st-john/yedextended/master/images/graph.gif)
@@ -28,13 +28,18 @@ Below are some basic usages of yEdExtended in interfacing with yEd and GraphML f
 
 
 ## Installing yEdExtended
-From Pypi, using pip:
+From PyPI, using pip:
 ```console
 $ pip install yedextended  
 ```
-Or from GITHUB:
+From GITHUB, using pip:
 ```console
 $ python -m pip install git+https://github.com/cole-st-john/yEdExtended
+```
+
+From GITHUB, using git:
+```console
+$ git clone https://github.com/cole-st-john/yedextended
 ```
 
 
@@ -48,6 +53,9 @@ import yedextended as yed
 
 ## Programmatically creating GraphML files
 
+With yEdExtended you can easily create graphs, either through hardcoding, or more practically, through porting data from any data source (databases, csv, xml, etc) into a graph and graph objects (nodes, groups, edges, properties):
+
+Hardcoding Example:
 ```python
 # Instantiate graph instance
 graph1 = yed.Graph()
@@ -64,6 +72,7 @@ group1.add_node("d")
 group1.add_edge("c", "d")
 ```
 
+Programmatic Example:
 ```python
 # Adding graph objects based on csv input
 import csv
@@ -75,6 +84,8 @@ with open("examples/test.csv", encoding="utf-8-sig") as csv_file:
 
 ## Reading existing GraphML files
 
+yEdExtended can read GraphML files into a Python class structure, allowing for simple programmatic analysis and modification:
+
 ```python
 # Read graph file into python graph objects
 graph1 = yed.Graph().from_existing_graph("examples/yed_created_edges.graphml")
@@ -83,6 +94,8 @@ graph1 = yed.Graph().from_existing_graph("examples/yed_created_edges.graphml")
 
 
 ## Using formatting
+
+yEdExtended provides for the majority of formatting one expects in yEd graphs.
 
 ```python
 # Add graph nodes and edges with some examples of non-default formatting
@@ -134,6 +147,8 @@ graph1.add_edge(
 
 ## Manipulating data in MS Excel 
 
+Sometimes, it is practical to mass edit or enter data in an interactive way.  yEdExtended includes functionality to enter basic to complex data and relationships using an interface to MS Excel interface. Note: to use this functionality, MS Excel must be installed and on path:
+
 ```python
 # Manage data in excel (add/remove/modify objects)
 graph1.manage_graph_data_in_excel() # default is object and hierachy management
@@ -142,7 +157,7 @@ graph1.manage_graph_data_in_excel() # default is object and hierachy management
 graph1.manage_graph_data_in_excel(type="relations")
 ```
 
-### Adding Objects / Groups per Excel:
+### Excel - Adding Objects / Groups:
 
 ![Excel Object Entry](https://raw.githubusercontent.com/cole-st-john/yedextended/master/images/excel_obj_entry.gif)
 
@@ -150,7 +165,7 @@ graph1.manage_graph_data_in_excel(type="relations")
 
 ![Graph result of excel data entry](https://raw.githubusercontent.com/cole-st-john/yedextended/master/images/graph_from_excel_obj.gif)
 
-### Adding Relationships per Excel:
+### Excel - Adding Relationships:
 
 ![Excel Relation Entry](https://raw.githubusercontent.com/cole-st-john/yedextended/master/images/excel_rel_entry.gif)
 
@@ -160,6 +175,8 @@ graph1.manage_graph_data_in_excel(type="relations")
 
 
 ## Possible outputs of Graph
+
+Eventually, one normally wants to visualize or transmit the graph in some format.  Here are a few options:
 
 ```python
 # Demonstrate stringified GraphML version of structure
@@ -181,7 +198,7 @@ graph_file = graph1.persist_graph("pretty_example.graphml", pretty_print=True)  
 
 ## Opening files in yEd Application *(assumes yEd installed and on PATH)*
 
-First install yEd application from [here](https://www.yworks.com/products/yed/download#download).
+To ease task switching between Python and yEd, functionality has been added to open graphs in yEd directly from Python.  Note: ensure you have installed yEd application from [here](https://www.yworks.com/products/yed/download#download) and that the app is on PATH (Win: "where yed.exe" in CMD should output a path).
 
 ```python
 # From existing handle
@@ -194,7 +211,7 @@ yed.open_yed_file("examples/test.graphml")
 
 ## Visualizing in yEd Application (Layout)
 
-Following programmatic creation or modification of a graph, consider using the following keystrokes in yEd to improve layout / positioning:
+Following programmatic creation or modification of a graph, consider using the following keystrokes in yEd to improve layout / positioning (yEdExtended does not currently include functionality for layout, which is readily available in yEd):
 
 - ``Tools -> Fit Node to Label``  (_Win: Alt + T + N_)
 - ``Layout -> Hierarchical``  (_Win: Alt + Shift + H_)
@@ -202,7 +219,7 @@ Following programmatic creation or modification of a graph, consider using the f
 
 # Options
 
-Provides comprehensive support for ``node_shapes``, ``line_types``, ``font_styles``, ``arrow_types``, custom parameters, UML, complex and deeply nested relationship structures and more.
+Provides comprehensive support for great variety of ``node_shapes``, ``line_types``, ``font_styles``, ``arrow_types``, custom parameters, UML, complex and deeply nested relationship structures and more.
 
 
 
