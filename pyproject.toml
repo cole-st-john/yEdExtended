@@ -99,6 +99,11 @@ case-sensitive = false
 [tool.coverage.run]
 branch = true
 relative_files = true
+# https://coverage.readthedocs.io/en/7.5.0/source.html#source
+omit = [
+	# omit everything in /tests
+	"tests/*",
+]
 
 [tool.coverage.report]
 # Regexes for lines to exclude from consideration
