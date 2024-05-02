@@ -63,7 +63,7 @@ jobs:
         git add test_coverage.svg
         
         # Commit the file with a message that includes the coverage output
-        git commit -m "Updated test coverage badge -  Test Coverage Results: ${coverage_output}"
+        git commit -m "Updated test coverage badge\n\nTest Coverage Results:\n\n${coverage_output}"
         
         # Push the changes to the main branch
         git push origin master
