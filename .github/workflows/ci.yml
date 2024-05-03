@@ -33,26 +33,24 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install flake8 pytest coverage coverage-badge setuptools
         python -m pip install -e .
-        if (Test-Path requirements.txt){ python -m pip install -r requirements.txt}
+        if (Test-Path requirements.dev.txt){ python -m pip install -r requirements.dev.txt}
         
     - name: Lint with flake8
       run: |
-        # stop the build if there are Python syntax errors or undefined names
+        # Stop the build if there are Python syntax errors or undefined names
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+        # Exit-zero treats all errors as warnings (you may want to adjust this)
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
         
-    - name: Run tests with pytest and with coverage information
+    - name: Run tests with pytest and coverage information
       run: |
         PYTHONPATH=. coverage run -m pytest .
-
+    
     - name: Generate and commit coverage report
       id: coverage-report
-      if: matrix.python-version == '3.12'  # Execute only if Python version is 3.12
+      if: matrix.python-version == "3.12"  # Execute only if Python version is 3.12
       run: |
-        # Run coverage report and capture the output
-        $coverage_output = coverage report -m
-        # Generate the SVG coverage badge
+        coverage_output=$(coverage report -m)
         coverage-badge -o test_coverage.svg -f
         
         # Configure Git with the author information
@@ -65,8 +63,8 @@ jobs:
         # Commit the file with a message that includes the coverage output
         git commit -m "Updated test coverage badge\n\nTest Coverage Results:\n\n${coverage_output}"
         
-        # Push the changes to the main branch
-        git push origin master
-        
+        # Push the changes to the correct branch
+        git push origin ${{ github.head_ref }}
+    
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
