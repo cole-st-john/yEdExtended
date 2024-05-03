@@ -11,7 +11,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     strategy:
       fail-fast: false
       matrix:
@@ -50,7 +50,7 @@ jobs:
       id: coverage-report
       if: matrix.python-version == "3.12"  # Execute only if Python version is 3.12
       run: |
-        coverage_output=$(coverage report -m)
+        $coverage_output= coverage report -m
         coverage-badge -o test_coverage.svg -f
         
         # Configure Git with the author information
