@@ -44,7 +44,7 @@ jobs:
         
     - name: Run tests with pytest and coverage information
       run: |
-        PYTHONPATH=. coverage run -m pytest .
+        coverage run -m pytest .
     
     - name: Generate and commit coverage report
       id: coverage-report
