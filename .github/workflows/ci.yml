@@ -11,7 +11,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -44,7 +44,7 @@ jobs:
         
     - name: Run tests with pytest and with coverage information
       run: |
-        coverage run -m pytest .
+        PYTHONPATH=. coverage run -m pytest .
 
     - name: Generate and commit coverage report
       id: coverage-report
