@@ -63,21 +63,9 @@ class Test_File:
         reason="Test not suitable for CI / Non-windows environments at this time",
     )
     def test_file_object_app(self):
-        # import pygetwindow as gw
-
         test_file_obj = yed.File("examples\\test.graphml")
         process = test_file_obj.open_with_yed()
         assert process is not None, "Expected a process object, but got None"
-
-        # def get_yed_graph_window_id(file):
-        #     """Retrieve handle of yEd window containing file"""
-        #     APP_NAME = "yEd"
-        #     window = None
-        #     search_name = file.window_search_name
-        #     window = gw.getWindowsWithTitle(search_name)
-        #     return window is not None
-
-        # assert get_yed_graph_window_id(test_file_obj) is True
 
         yed.kill_yed()
 
