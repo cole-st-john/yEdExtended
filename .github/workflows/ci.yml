@@ -48,7 +48,7 @@ jobs:
     
     - name: Generate and commit coverage report
       id: coverage-report
-      if: matrix.python-version == "3.12"  # Execute only if Python version is 3.12
+      if: matrix.python-version == '3.12'  # Execute only if Python version is 3.12
       run: |
         $coverage_output= coverage report -m
         coverage-badge -o test_coverage.svg -f
@@ -64,7 +64,7 @@ jobs:
         git commit -m "Updated test coverage badge\n\nTest Coverage Results:\n\n${coverage_output}"
         
         # Push the changes to the correct branch
-        git push origin ${{ github.head_ref }}
+        git push origin master
     
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
