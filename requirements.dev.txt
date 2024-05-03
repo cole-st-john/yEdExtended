@@ -1,0 +1,7 @@
+openpyxl==3.1.2
+psutil==5.9.8
+flake8
+pytest
+coverage
+coverage-badge
+setuptools
