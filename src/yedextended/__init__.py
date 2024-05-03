@@ -8,6 +8,7 @@ Currently supports...
 
 """
 
+import asyncio
 import os
 import platform
 import re
@@ -25,6 +26,9 @@ import pygetwindow as gw
 
 # Enumerated parameters / Constants
 PROGRAM_NAME = "yEd.exe"
+
+# Initialize the trigger variable
+testing = False
 
 LINE_TYPES = [
     "line",
@@ -81,7 +85,7 @@ def checkValue(
 
 
 class File:
-    """Object to pass around, check and act on yEd files / filepaths."""
+    """Object to check and act on yEd files / filepaths."""
 
     def __init__(self, file_name_or_path=None):
         self.DEFAULT_FILE_NAME = "temp"
@@ -94,10 +98,12 @@ class File:
 
     def path_validate(self, temp_name_or_path=None):
         """Validate if the file was initialized with valid path - returning the same path - if not valid, return working directory as default path."""
-        path = ""
+        path = os.getcwd()
         if temp_name_or_path:
             path = os.path.dirname(temp_name_or_path)
-        return path or os.getcwd()
+            if not os.path.exists(path):
+                path = os.getcwd()
+        return path
 
     def base_name_validate(self, temp_name_or_path=None):
         """Validate / Build valid file name with GraphML extension"""
@@ -112,7 +118,8 @@ class File:
     def open_with_yed(self, force=False):
         """Method to open GraphML file directly with yEd application (must be installed and on path)."""
         print("opening...")
-        open_yed_file(self, force)
+        process = open_yed_file(self, force)
+        return process
 
 
 class Label:
@@ -974,19 +981,16 @@ class GraphStats:
 
         for node in sub_nodes:
             id = node.node_name
-            if id:
-                self.all_nodes[id] = node
+            self.all_nodes[id] = node
 
         for group in sub_groups:
             id = group.group_id
-            if id:
-                self.all_groups[id] = group
+            self.all_groups[id] = group
             self.recursive_id_extract(group)
 
         for edge in sub_edges:
             id = edge.edge_id
-            if id:
-                self.all_edges[id] = edge
+            self.all_edges[id] = edge
 
 
 class Graph:
@@ -1879,7 +1883,7 @@ def is_yed_findable():
     """Find yEd exe path locally"""
     path = which(PROGRAM_NAME) or None
     yed_found_bool = path is not None
-    if not yed_found_bool:
+    if not yed_found_bool and not testing:
         msg.showerror(
             title="Could not find yEd application.",
             message="Please install / add yEd to path.",
@@ -1889,12 +1893,11 @@ def is_yed_findable():
 
 def get_yed_pid():
     """Return process id for yEd application or None if not running"""
-    pid = None
-    for process in psutil.process_iter(["name"]):
-        if process.info["name"] == PROGRAM_NAME:
-            pid = process.pid or None
-            break
-    return pid
+    yed_pid = None
+    yed_process = get_yed_process()
+    if yed_process:
+        yed_pid = yed_process.pid
+    return yed_pid
 
 
 def get_yed_process():
@@ -1912,76 +1915,105 @@ def is_yed_open() -> bool:
     return get_yed_pid() is not None
 
 
-def _maximize(file=None) -> None:
-    """Maximize/show the yEd app (for particular file) - if found. Not currently robust."""
-
-    window = get_yed_graph_window_id(file)
-
-    if window:
-        window.activate()
-        window.show()
-        window.maximize()
-
-
-def get_yed_graph_window_id(file: File | None):
-    """Retrieve handle of yEd window containing file"""
-    APP_NAME = "yEd"
-    window = None
-    if not file:
-        potential_windows = [title.lower for title in gw.getAllTitles()]
-        search_name = [title for title in potential_windows if title.endswith(APP_NAME)][0]
-    else:
-        search_name = file.window_search_name
-
-    if search_name:
-        window = gw.getWindowsWithTitle(search_name)  # FIXME: gives false positive w files of same name / diff path.
-    return window[0] if window else None
-
-
-def is_yed_graph_open(file: File) -> bool:
-    """Check whether yEd is currently open with particular file - windows, linux, os, etc."""
-    window = get_yed_graph_window_id(file)
-    return window is not None
-
-
-def open_yed_file(file: File, force=False) -> None:
-    """Opens yed file - also will start yed if not open."""
-    if force:
+def open_yed_file(file: File, force=False):
+    """Opens yed file - also will start yed if not open. Returns process or None."""
+    process = None
+    if force and not testing:
         answer = msg.askokcancel(title="Force yEd App Close", message="Are you ok to force yEd closure?")
         if not answer:
             print("Exiting program")
             exit()
-        process = get_yed_process()
-        if process:
-            process.kill()
-    if not is_yed_graph_open(file):
+
+        kill_yed()
+
+    loop = asyncio.new_event_loop()  # Create a new event loop
+    asyncio.set_event_loop(loop)  # Set it as the current event loop
+
+    async def start_yed_w_file_core(file):
+        # Check the operating system and open the file
         if platform.system() == "Darwin":  # macOS
-            subprocess.call(("open", file.fullpath))
+            process = await asyncio.create_subprocess_exec(
+                "open", file.fullpath, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+            )
         elif platform.system() == "Windows":  # Windows
-            os.startfile(file.fullpath)
-        else:  # linux variants
-            subprocess.call(("xdg-open", file.fullpath))
+            process = await asyncio.create_subprocess_exec(
+                "yed.exe", file.fullpath, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+            )
+        else:  # Linux variants
+            process = await asyncio.create_subprocess_exec(
+                "xdg-open", file.fullpath, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+            )
 
-        _maximize(file)  # FIXME: Likely not effective
+        if process:
+            if testing:
+                process.terminate()
+            await process.wait()
+
+        # Return the process object
+        return process
+
+    try:
+        # Run the asynchronous function and wait for its completion
+        process = loop.run_until_complete(start_yed_w_file_core(file))
+
+    finally:
+        # Close the event loop to avoid resource leaks
+        loop.close()
+
+    # Return the process object
+    return process
 
 
-def start_yed() -> None:
-    """Starts yEd program (if installed and on path and not already open)."""
+def start_yed(wait=False):
+    """Starts yEd program (if installed and on path and not already open). Returns process or None."""
+    process = None
     if is_yed_findable():
         if not is_yed_open():
-            subprocess.run(PROGRAM_NAME)
+            if wait is False:
+                loop = asyncio.new_event_loop()  # Create a new event loop
+                asyncio.set_event_loop(loop)  # Set it as the current event loop
+
+                async def start_yed_core():
+                    process = await asyncio.create_subprocess_exec(
+                        PROGRAM_NAME, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+                    )
+                    if process:
+                        if testing:
+                            process.terminate()
+                        await process.wait()
+                    return process
+
+                try:
+                    # Run the asynchronous function and wait for its completion
+                    process = loop.run_until_complete(start_yed_core())
+                    # return process
+                finally:
+                    # Close the event loop to avoid resource leaks
+                    loop.close()
+            elif wait is True:
+                subprocess.run(PROGRAM_NAME)
+
+    return process
+
+
+def kill_yed() -> None:
+    """Ends yEd program (if installed and on path and open)."""
+    yed_process = get_yed_process()
+    if yed_process:
+        yed_process.kill()
 
 
 # Utilities =======================================
 def xml_to_simple_string(file_path) -> str:
     """Takes GraphML xml in string format and reduces complexity of the string for simpler parsing (without loss of any significant information).  Returns simplified string."""
+    graph_str = ""
     try:
         with open(file_path, "r") as graph_file:
             graph_str = graph_file.read()
 
-    except Exception as E:
-        print(f"Error: {E}")
-
+    except FileNotFoundError:
+        print(f"Error, file not found: {file_path}")
+        raise FileNotFoundError(f"Error, file not found: {file_path}")
     else:
         # Preprocessing of file for ease of parsing
         graph_str = graph_str.replace("\n", " ")  # line returns

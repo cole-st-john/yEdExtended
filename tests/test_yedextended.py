@@ -1,8 +1,84 @@
+import asyncio
+import os
+import platform
 import xml.etree.ElementTree as xml
+from time import sleep
 
+import pygetwindow as gw
 import pytest
 
 import yedextended as yed
+
+# Set the trigger variable to True for testing
+yed.testing = True
+
+
+class Test_File:
+    """Testing File class"""
+
+    def test_file_object_basics(self):
+        # Given: yed file object
+        # When: given no basename or path
+        # Then: returns default graphml basename and working dir path
+        test_file_obj = yed.File()
+        assert test_file_obj.basename == "temp.graphml"
+        assert test_file_obj.window_search_name == "temp.graphml - yEd"
+        assert test_file_obj.dir == os.getcwd()
+
+        # Given: yed file object
+        # When: given simple name w/o path
+        # Then: returns same basename and working dir path
+        test_file_obj = yed.File("abc.graphml")
+        assert test_file_obj.basename == "abc.graphml"
+        assert test_file_obj.window_search_name == "abc.graphml - yEd"
+        assert test_file_obj.dir == os.getcwd()
+
+        # Given: yed file object
+        # When: given simple name w/ relative path (and cwd with that rel path)
+        # Then: returns same basename and working dir path
+        test_file_obj = yed.File("examples\\abc.graphml")
+        assert test_file_obj.basename == "abc.graphml"
+        assert test_file_obj.window_search_name == "abc.graphml - yEd"
+        assert test_file_obj.fullpath.endswith("examples\\abc.graphml")
+        assert os.path.exists(test_file_obj.dir) is True
+
+        # Given: yed file object
+        # When: given simple name and bad path
+        # Then: returns same basename and diff path
+        test_file_obj = yed.File(r"c:\fakepath11\abc.graphml")
+        assert test_file_obj.basename == "abc.graphml"
+        assert test_file_obj.dir == os.getcwd()
+
+        # Given: yed file object
+        # When: given simple name and valid path
+        # Then: returns same basename and path
+        test_file_obj = yed.File(os.path.join(os.getcwd(), "abc.graphml"))
+        assert test_file_obj.basename == "abc.graphml"
+        assert test_file_obj.dir == os.getcwd()
+
+    # Given: yEd is installed
+    # When: triggering open_with_yed
+    # Then: file should be opened
+    @pytest.mark.skipif(
+        os.environ.get("CI") is not None or not platform.platform().startswith("Windows"),
+        reason="Test not suitable for CI / Non-windows environments at this time",
+    )
+    def test_file_object_app(self):
+        test_file_obj = yed.File("examples\\test.graphml")
+        process = test_file_obj.open_with_yed()
+        assert process is not None, "Expected a process object, but got None"
+
+        def get_yed_graph_window_id(file):
+            """Retrieve handle of yEd window containing file"""
+            APP_NAME = "yEd"
+            window = None
+            search_name = file.window_search_name
+            window = gw.getWindowsWithTitle(search_name)
+            return window is not None
+
+        assert get_yed_graph_window_id(test_file_obj) is True
+
+        yed.kill_yed()
 
 
 def test_graph_added_node_has_default_fill():
@@ -232,3 +308,84 @@ def test_nested_graph_edges():
     with pytest.raises(RuntimeWarning):
         g3.add_edge("g1n1", "g2n2")
     assert g.num_edges == 10
+
+
+def test_start_yed():
+    process = yed.start_yed()
+    assert process is not None, "Expected a process object, but got None"
+    yed.kill_yed()  # redundant
+
+
+def test_is_yed_open():
+    # Initialize the test YED file
+    test_graph = yed.File("examples\\yed_created_edges.graphml")
+
+    # Open the YED file asynchronously and await its completion
+    process = test_graph.open_with_yed()
+
+    # Assert that the result is not None
+    assert process is not None, "Expected a process object, but got None"
+
+    # Assert that YED is findable
+    assert yed.is_yed_findable() is True
+
+    # Kill the YED process
+    yed.kill_yed()
+
+
+def test_xml_to_simple_string():
+    # Given: yEd utility
+
+    # When: valid file with items needing simplification
+    # Then: returns simplified string
+    test_string = yed.xml_to_simple_string("examples\\yed_created_edges.graphml")
+    assert test_string.find("\n") == -1
+
+    # When: invalid file
+    # Then: returns Exception
+
+    with pytest.raises(FileNotFoundError):
+        yed.xml_to_simple_string("not_existing_file")
+
+
+class Test_GraphStats:
+    def test_graph_stats_basic(self):
+        # Given: existing graph of known stats
+        test_graph = yed.Graph().from_existing_graph("examples\\yed_created_edges.graphml")
+
+        # When: taking the stats
+        results_stats = test_graph.gather_graph_stats()
+
+        # Then: we can assume the following stats
+        assert len(results_stats.all_edges) == 3
+        assert len(results_stats.all_groups) == 1
+        assert len(results_stats.all_nodes) == 4
+
+        # Given: existing graph of known stats - empty
+        test_graph = yed.Graph().from_existing_graph("examples\\yed_created_empty_graph.graphml")
+
+        # When: taking the stats
+        results_stats = test_graph.gather_graph_stats()
+
+        # Then: we can assume the following stats
+        assert len(results_stats.all_edges) == 0
+        assert len(results_stats.all_groups) == 0
+        assert len(results_stats.all_nodes) == 0
+
+
+def test_custom_property_assignment():
+    graph1 = yed.Graph()
+
+    graph1.define_custom_property("node", "Population", "int", "0")
+    graph1.define_custom_property("edge", "Population", "int", "1")
+    group1 = graph1.add_group("group1", custom_properties={"Population": "2"})
+    node1 = graph1.add_node("a")
+    edge1 = graph1.add_edge("group1", "a")
+    node2 = group1.add_node("b")
+    node3 = group1.add_node("c", custom_properties={"Population": "3"})
+
+    assert node1.Population == "0", "Property not as expected"
+    assert node2.Population == "0", "Property not as expected"
+    assert node3.Population == "3", "Property not as expected"
+    assert edge1.Population == "1", "Property not as expected"
+    assert group1.Population == "2", "Property not as expected"
