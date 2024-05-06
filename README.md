@@ -14,7 +14,7 @@ This Python library extends the functionality of the readily available and free 
 - [x] formatting graphs
 - [x] reading graphs
 - [x] bulk data addition or management (MS excel-based)
-- [x] management of the yEd application (starting, killing, maximizing)
+- [x] management of the yEd application (starting, killing, etc.)
 - [ ] enforcing rules on graphs
 - [ ] additional layout methods
 - [ ] graph comparison tools
@@ -239,7 +239,7 @@ $ pip install pytest
 ```
 
 ```console
-$ SETX CI "True"
+$ setx CI "True"
 ```
 
 To run the tests:
