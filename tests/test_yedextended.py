@@ -59,7 +59,7 @@ class Test_File:
     # When: triggering open_with_yed
     # Then: file should be opened
     @pytest.mark.skipif(
-        os.environ.get("CI") is None or not platform.platform().startswith("Windows"),
+        os.environ.get("CI") is not True or not platform.platform().startswith("Windows"),
         reason="Test not suitable for CI / Non-windows environments at this time",
     )
     def test_file_object_app(self):
@@ -300,7 +300,7 @@ def test_nested_graph_edges():
 
 
 @pytest.mark.skipif(
-    os.environ.get("CI") is None or not platform.platform().startswith("Windows"),
+    os.environ.get("CI") is not True or not platform.platform().startswith("Windows"),
     reason="Test not suitable for CI / Non-windows environments at this time",
 )
 def test_start_yed():
@@ -310,7 +310,7 @@ def test_start_yed():
 
 
 @pytest.mark.skipif(
-    os.environ.get("CI") is None or not platform.platform().startswith("Windows"),
+    os.environ.get("CI") is not True or not platform.platform().startswith("Windows"),
     reason="Test not suitable for CI / Non-windows environments at this time",
 )
 def test_is_yed_open():
