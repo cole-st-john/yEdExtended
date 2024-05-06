@@ -229,8 +229,17 @@ Provides comprehensive support for great variety of ``node_shapes``, ``line_type
 Interested in contributing or co-managing further development?  Just reach out!
 
 Dev. Requirements:
+
+Install yEd from [here](https://www.yworks.com/products/yed/download#download).
+
+Ensure you have [MS Excel](https://www.microsoft.com/en/microsoft-365/excel?market=af) installed.
+
 ```console
 $ pip install pytest
+```
+
+```console
+$ SETX CI "True"
 ```
 
 To run the tests:
