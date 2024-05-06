@@ -386,3 +386,24 @@ def test_custom_property_assignment():
     assert node3.Population == "3", "Property not as expected"
     assert edge1.Population == "1", "Property not as expected"
     assert group1.Population == "2", "Property not as expected"
+
+
+def test_persist_graph():
+    # Test redundant file error
+    file = "abcd.graphml"
+    if os.path.exists(file):
+        os.remove(file)
+    yed.Graph().persist_graph(file)
+    with pytest.raises(FileExistsError):
+        yed.Graph().persist_graph(file)
+
+
+def test_from_existing_graph():
+    assert isinstance(yed.Graph().from_existing_graph("examples\\yed_created_edges.graphml"), yed.Graph)
+
+    with pytest.raises(FileNotFoundError):
+        yed.Graph().from_existing_graph("not_existing_file")
+
+    test_graph = yed.Graph().from_existing_graph("examples\\yed_created_edges.graphml")  # TODO:
+    test_graph_stats = test_graph.gather_graph_stats()
+    assert test_graph_stats.all_nodes["n0"].url is not None
