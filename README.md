@@ -239,7 +239,7 @@ $ pip install pytest
 ```
 
 ```console
-$ SETX CI "True"
+$ setx CI "True"
 ```
 
 To run the tests:
