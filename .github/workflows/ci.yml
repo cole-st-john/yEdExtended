@@ -31,7 +31,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python -m pip install flake8 pytest setuptools
+        python -m pip install flake8 pytest coverage coverage-badge setuptools
         python -m pip install -e .
         if (Test-Path requirements.dev.txt){ python -m pip install -r requirements.dev.txt}
         
@@ -44,4 +44,27 @@ jobs:
         
     - name: Run tests with pytest and coverage information
       run: |
-        pytest .
+        coverage run -m pytest .
+    
+    - name: Generate and commit coverage report
+      id: coverage-report
+      if: matrix.python-version == '3.12'  # Execute only if Python version is 3.12
+      run: |
+        $coverage_output= coverage report -m
+        coverage-badge -o test_coverage.svg -f
+        
+        # Configure Git with the author information
+        git config --global user.email "info@colestjohn.com"
+        git config --global user.name "cole-st-john"
+        
+        # Add the test_coverage.svg file to the repository
+        git add test_coverage.svg
+        
+        # Commit the file with a message that includes the coverage output
+        git commit -m "Updated test coverage badge\n\nTest Coverage Results:\n\n${coverage_output}"
+        
+        # Push the changes to the correct branch
+        git push origin master
+    
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
