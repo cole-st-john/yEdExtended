@@ -370,6 +370,28 @@ class Test_GraphStats:
         assert len(results_stats.all_nodes) == 0
 
 
+def test_round_trip():
+    FILE = "roundtrip.graphml"
+    if os.path.exists(FILE):
+        os.remove(FILE)
+
+    graph = yed.Graph()
+    print(graph.stringify_graph())
+    print(graph.custom_properties)
+    graph.add_node("a")
+    graph.add_node("b")
+    graph.add_edge("a", "b")
+
+    # print(graph.stringify_graph())
+
+    graph_file = graph.persist_graph(FILE)
+    graph_after = yed.Graph().from_existing_graph(graph_file)
+    assert graph.stringify_graph() == graph_after.stringify_graph()
+
+    graph.add_node("c")
+    assert graph.stringify_graph() != graph_after.stringify_graph()
+
+
 def test_custom_property_assignment():
     graph1 = yed.Graph()
 
@@ -387,15 +409,42 @@ def test_custom_property_assignment():
     assert edge1.Population == "1", "Property not as expected"
     assert group1.Population == "2", "Property not as expected"
 
+    assert graph1.stringify_graph().find("Population") != -1, "Property not found in graphml"
+
 
 def test_persist_graph():
-    # Test redundant file error
-    file = "abcd.graphml"
-    if os.path.exists(file):
-        os.remove(file)
-    yed.Graph().persist_graph(file)
+    file1 = "abcd.graphml"
+    file2 = "abcde.graphml"
+
+    # Ensure cleaned up
+    if os.path.exists(file1):
+        os.remove(file1)
+    if os.path.exists(file2):
+        os.remove(file2)
+
+    graph1 = yed.Graph()
+    graph1.add_node("a")
+    graph1.add_node("b")
+
+    # Test that a file is created/stored
+    graph1.persist_graph(file1)
+    assert os.path.exists(file1) is True
+
+    # Test redundant file error - if same filename used
     with pytest.raises(FileExistsError):
-        yed.Graph().persist_graph(file)
+        yed.Graph().persist_graph(file1)
+
+    # Test no error if overwrite is True
+    yed.Graph().persist_graph(file1, overwrite=True)
+
+    # Test pretty print not same contents as non-pretty print
+    graph1.persist_graph(file2, pretty_print=True)
+    file1_handle = open(file1, "r")
+    file2_handle = open(file2, "r")
+    file1_contents = file1_handle.read()
+    file2_contents = file2_handle.read()
+    assert file1_contents != file2_contents
+    assert file2_contents.count("\n") > file1_contents.count("\n")
 
 
 def test_from_existing_graph():
@@ -407,3 +456,105 @@ def test_from_existing_graph():
     test_graph = yed.Graph().from_existing_graph("examples\\yed_created_edges.graphml")  # TODO:
     test_graph_stats = test_graph.gather_graph_stats()
     assert test_graph_stats.all_nodes["n0"].url is not None
+
+
+def test_create_graph_with_url_description():
+    # FIXME:
+    FILE1 = "test.graphml"
+
+    graph1 = yed.Graph()
+    graph1.add_node(
+        "a",
+        url="http://www.google.com",
+        description="This is a node with a URL and description",
+    )
+    graph1.add_node("b")
+    graph1.add_edge(
+        "a",
+        "b",
+        url="http://www.google.com",
+        description="This is an edge with a URL and description",
+    )
+    group1 = graph1.add_group(
+        "group1",
+        url="http://www.google.com",
+        description="This is a group with a URL and description",
+    )
+    group1.add_edge("c", "d")
+    group1.add_group("group1_1")
+
+    # Ensure cleaned up
+    if os.path.exists(FILE1):
+        os.remove(FILE1)
+
+    graph1.persist_graph(FILE1)
+    # graph1_reimport = yed.Graph().from_existing_graph(FILE1)
+
+    if os.path.exists(FILE1):
+        os.remove(FILE1)
+
+
+def test_create_edge_w_o_nodes():
+    graph1 = yed.Graph()
+    graph1.add_edge("a", "b")
+    # FIXME:
+
+
+def test_removes():
+    # FIXME:
+
+    graph1 = yed.Graph()
+
+    # first level nodes
+    graph1.add_node("a")
+    graph1.add_node("b")
+    graph1.add_node("c")
+
+    # first level edges
+    graph1.add_edge("a", "b", edge_id="e0")
+    graph1.add_edge("a", "c", edge_id="e1")
+
+    # first level group
+    group1 = graph1.add_group("group1")
+
+    # second level items
+    group1.add_node("d")
+    group1.add_group("group1_1")
+    group1.add_edge("e", "f")
+
+    stats1 = graph1.gather_graph_stats()
+    assert stats1.all_nodes == {
+        "a": graph1.nodes["a"],
+        "b": graph1.nodes["b"],
+        "c": graph1.nodes["c"],
+        "d": group1.nodes["d"],
+        "e": group1.nodes["e"],
+        "f": group1.nodes["f"],
+    }
+    assert stats1.all_groups == {"group1": group1, "group1_1": group1.groups["group1_1"]}
+    assert stats1.all_edges == {"1": graph1.edges["1"], "2": graph1.edges["2"], "3": group1.edges["3"]}
+
+    graph1.remove_node("b")
+    graph1.remove_group("group1")
+    stats2 = graph1.gather_graph_stats()
+    assert stats2.all_nodes == {"a": graph1.nodes["a"], "c": graph1.nodes["c"]}
+    assert stats2.all_groups == {}
+    assert stats2.all_edges == {"1": graph1.edges["1"], "2": graph1.edges["2"]}
+
+    graph1.run_graph_rules()
+
+    stats3 = graph1.gather_graph_stats()
+    assert stats3.all_nodes == {"a": graph1.nodes["a"], "c": graph1.nodes["c"]}
+    assert stats3.all_groups == {}
+    assert stats3.all_edges == {
+        "2": graph1.edges["2"],
+    }
+
+    with pytest.raises(RuntimeWarning):
+        graph1.remove_node("na")
+
+    with pytest.raises(RuntimeWarning):
+        graph1.remove_edge("na")
+
+    with pytest.raises(RuntimeWarning):
+        graph1.remove_group("group_na")

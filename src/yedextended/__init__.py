@@ -96,6 +96,9 @@ class File:
         self.window_search_name = self.basename + " - yEd"
         self.file_exists = os.path.isfile(self.fullpath)
 
+    def full_path_validate(self):
+        self.file_exists = os.path.isfile(self.fullpath)
+
     def path_validate(self, temp_name_or_path=None):
         """Validate if the file was initialized with valid path - returning the same path - if not valid, return working directory as default path."""
         path = os.getcwd()
@@ -1093,7 +1096,7 @@ class Graph:
 
     def remove_edge(self, edge_id):
         """Removing edge from graph - uses node names not node objects."""
-        if not self.edges[edge_id]:
+        if edge_id not in self.edges:
             raise RuntimeWarning("Edge %s does not exist under graph" % (edge_id))
         del self.edges[edge_id]
         self.num_edges -= 1
@@ -1191,6 +1194,9 @@ class Graph:
         else:
             tree = ET.ElementTree(self.graphml)
             tree.write(graph_file.fullpath)  # Uses internal method to XML Etree
+
+        # recheck the file as existing or not
+        graph_file.full_path_validate()
 
         return graph_file
 
