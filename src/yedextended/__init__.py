@@ -29,6 +29,7 @@ PROGRAM_NAME = "yEd.exe"
 
 # Initialize the trigger variable
 testing = False
+local_testing = None
 
 LINE_TYPES = [
     "line",
@@ -106,7 +107,7 @@ class File:
             path = os.path.dirname(temp_name_or_path)
             if not os.path.exists(path):
                 path = os.getcwd()
-        return path
+        return os.path.realpath(path)
 
     def base_name_validate(self, temp_name_or_path=None):
         """Validate / Build valid file name with GraphML extension"""
@@ -1276,7 +1277,7 @@ class Graph:
                             node_label = info_node.find("NodeLabel")
                             if node_label is not None:
                                 node_init_dict["label"] = node_label.text
-                                print("here")
+
                                 # TODO: PORT REST OF NODELABEL
 
                             # <Fill color="#FFCC00" transparent="false" />
@@ -1480,40 +1481,45 @@ class Graph:
     def manage_graph_data_in_excel(self, type=None):
         """Port graph data into Excel in several formats for easy and bulk creation and management.  Then ports back into python graph structure."""
 
-        TEMP_EXCEL_SHEET = "test.xlsx"
-
-        MANAGE_TYPES = {"obj_and_hierarchy", "object_data", "relations"}
-
+        MANAGE_TYPES = ["obj_and_hierarchy", "object_data", "relations"]
         type = type or "obj_and_hierarchy"  # default
+        checkValue("type", type, MANAGE_TYPES)  # verification
+
+        original_stats = self.gather_graph_stats()
+        id_to_label = dict()
+        id_to_obj = dict()
+
+        # Create excel template ============================================
+        TEMP_EXCEL_SHEET = "yedextended_temp.xlsx"
 
         # create workbook
         excel_wb = pyxl.Workbook()
 
         # Inserting /organizing sheets
         excel_ws = excel_wb.active
+        row = 2
 
-        # Extract objects ============================================
-        original_stats = self.gather_graph_stats()
-        id_to_label = dict()
-        id_to_obj = dict()
         OBJECTS_WS_NAME = "Objects_and_Groups"
         objects_ws = excel_wb.create_sheet(OBJECTS_WS_NAME, 0)
-
-        # HEADER
         objects_ws.cell(
             row=1, column=1, value="FORMAT -> LABEL | ID (INDENTATION OF INFO MEANS BELONGING TO GROUP ABOVE.)"
         )
 
-        row = 2
+        if type == "relations":
+            RELATIONS_WS_NAME = "Relations"
+            relations_ws = excel_wb.create_sheet(RELATIONS_WS_NAME, 1)
+            relations_ws.cell(row=1, column=1, value="FORMAT -> NODE1 | NODE2 | EDGE_LABEL | EDGE_ID ")
 
-        def object_extract(self, input_node, indent_level):
+        if excel_ws:
+            excel_wb.remove(excel_ws)  # removing default sheet
+
+        def graph_object_extract_to_excel(self, input_node, indent_level):
             nonlocal row
             nonlocal id_to_label
             nonlocal id_to_obj
 
             sub_nodes = input_node.nodes
             sub_groups = input_node.groups
-            sub_edges = input_node.edges
 
             for node in sub_nodes.values():
                 id = node.node_name or ""
@@ -1528,6 +1534,7 @@ class Graph:
                 id_to_label[id] = label
                 id_to_obj[id] = node
 
+                # posting to excel
                 objects_ws.cell(row=row, column=indent_level, value=label)
                 objects_ws.cell(row=row, column=indent_level + 1, value=id)
                 row += 1
@@ -1535,29 +1542,30 @@ class Graph:
             for group in sub_groups.values():
                 id = group.group_id or ""
                 label = getattr(group, "label", "")
+
+                # posting to excel
                 objects_ws.cell(row=row, column=indent_level, value=label)
                 objects_ws.cell(row=row, column=indent_level + 1, value=id)
                 row += 1
-                print(id, label)
 
                 id_to_label[id] = label
                 id_to_obj[id] = group
-                object_extract(self, group, indent_level=indent_level + 1)
 
-        object_extract(self, self, indent_level=1)
+                # Recursive extraction - adapting indent
+                graph_object_extract_to_excel(self, group, indent_level=indent_level + 1)
+
+        graph_object_extract_to_excel(self, self, indent_level=1)
 
         # Extract Relations =======================================================
         if type == "relations":
-            RELATIONS_WS_NAME = "Relations"
-            relations_ws = excel_wb.create_sheet(RELATIONS_WS_NAME, 1)
             row = 2
             col = 1
-            relations_ws.cell(row=1, column=1, value="FORMAT -> NODE1 | NODE2 | EDGE_LABEL | EDGE_ID ")
+
             obj_keys = list(id_to_label.keys())
             obj_values = list(id_to_label.values())
             dup_objects = list(filter(lambda x: True if obj_values.count(x) > 1 else False, obj_values))
 
-            def relations_extract(self, input_node):
+            def relations_extract_to_excel(self, input_node):
                 nonlocal row
 
                 sub_groups = input_node.groups
@@ -1587,6 +1595,7 @@ class Graph:
                     if isinstance(input_node, Group):
                         group_name = deduplicate_obj(input_node.group_id)
 
+                    # post to excel
                     relations_ws.cell(row=row, column=col, value=node1name)
                     relations_ws.cell(row=row, column=col + 1, value=node2name)
                     relations_ws.cell(row=row, column=col + 2, value=label)
@@ -1595,24 +1604,25 @@ class Graph:
                     row += 1
 
                 for group in sub_groups.values():
-                    relations_extract(self, group)
+                    relations_extract_to_excel(self, group)
 
-            relations_extract(self, self)
+            relations_extract_to_excel(self, self)
 
-        # potentially saving
-        excel_wb.remove(excel_ws)  # removing default sheet
+        #  saving and opening excel for manual editing
         excel_wb.save(TEMP_EXCEL_SHEET)
         excel_wb.close()
 
-        os.startfile(TEMP_EXCEL_SHEET)
+        # opening excel for manual editing
+        if not testing:
+            os.startfile(TEMP_EXCEL_SHEET)
 
-        # some kind of signal?
+            user_response = msg.askokcancel(
+                title="yEd Bulk Data Management - Async", message="To process changes, save workbook and press ok."
+            )
 
-        user_response = msg.askokcancel(
-            title="yEd Bulk Data Management - Async", message="To process changes, save workbook and press ok."
-        )
-        if not user_response:
-            return
+            if not user_response:
+                print("User cancelled operation.")
+                exit()
 
         excel_wb = pyxl.load_workbook(TEMP_EXCEL_SHEET)
 
@@ -1845,7 +1855,9 @@ class Graph:
         elif type == "object_data":  # TODO: Implement management of deeper data - url, description, formatting
             raise NotImplementedError("This functionality is not yet implemented.")
 
-        # Run Checks
+        excel_wb.close()
+
+        # Run Checks to avoid problems of manual data management
         self.run_graph_rules()
 
     def gather_graph_stats(self) -> GraphStats:
@@ -1889,7 +1901,7 @@ def is_yed_findable():
     """Find yEd exe path locally"""
     path = which(PROGRAM_NAME) or None
     yed_found_bool = path is not None
-    if not yed_found_bool and not testing:
+    if not yed_found_bool:
         msg.showerror(
             title="Could not find yEd application.",
             message="Please install / add yEd to path.",
@@ -1921,10 +1933,26 @@ def is_yed_open() -> bool:
     return get_yed_pid() is not None
 
 
+def start_subprocess(command):
+    try:
+        # Start the subprocess
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        pid = process.pid
+        print(f"Started process with PID: {pid}")
+        return process
+    except Exception as e:
+        print(f"Unexpected error: {e}", file=sys.stderr)
+    return None
+
+
 def open_yed_file(file: File, force=False):
     """Opens yed file - also will start yed if not open. Returns process or None."""
     process = None
-    if force and not testing:
+
+    if not file.file_exists:
+        return None
+
+    if force:
         answer = msg.askokcancel(title="Force yEd App Close", message="Are you ok to force yEd closure?")
         if not answer:
             print("Exiting program")
@@ -1932,74 +1960,30 @@ def open_yed_file(file: File, force=False):
 
         kill_yed()
 
-    loop = asyncio.new_event_loop()  # Create a new event loop
-    asyncio.set_event_loop(loop)  # Set it as the current event loop
+    command = [PROGRAM_NAME, file.fullpath]
+    process = start_subprocess(command)
 
-    async def start_yed_w_file_core(file):
-        # Check the operating system and open the file
-        if platform.system() == "Darwin":  # macOS
-            process = await asyncio.create_subprocess_exec(
-                "open", file.fullpath, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-            )
-        elif platform.system() == "Windows":  # Windows
-            process = await asyncio.create_subprocess_exec(
-                "yed.exe", file.fullpath, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-            )
-        else:  # Linux variants
-            process = await asyncio.create_subprocess_exec(
-                "xdg-open", file.fullpath, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-            )
-
-        if process:
-            if testing:
-                process.terminate()
-            await process.wait()
-
-        # Return the process object
-        return process
-
-    try:
-        # Run the asynchronous function and wait for its completion
-        process = loop.run_until_complete(start_yed_w_file_core(file))
-
-    finally:
-        # Close the event loop to avoid resource leaks
-        loop.close()
-
-    # Return the process object
-    return process
+    return process or None
 
 
 def start_yed(wait=False):
-    """Starts yEd program (if installed and on path and not already open). Returns process or None."""
+    """Starts yEd program (if installed and on path and not already open). Returns process or None.
+
+    Wait - if True, will wait for yEd to close before returning.
+    """
     process = None
     if is_yed_findable():
         if not is_yed_open():
             if wait is False:
-                loop = asyncio.new_event_loop()  # Create a new event loop
-                asyncio.set_event_loop(loop)  # Set it as the current event loop
+                command = [
+                    PROGRAM_NAME,
+                ]
+                process = start_subprocess(command)
 
-                async def start_yed_core():
-                    process = await asyncio.create_subprocess_exec(
-                        PROGRAM_NAME, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-                    )
-                    if process:
-                        if testing:
-                            process.terminate()
-                        await process.wait()
-                    return process
-
-                try:
-                    # Run the asynchronous function and wait for its completion
-                    process = loop.run_until_complete(start_yed_core())
-                    # return process
-                finally:
-                    # Close the event loop to avoid resource leaks
-                    loop.close()
-            elif wait is True:
+                return process or None
+            else:
                 subprocess.run(PROGRAM_NAME)
-
-    return process
+                return None
 
 
 def kill_yed() -> None:

@@ -10,6 +10,7 @@ import yedextended as yed
 
 # Set the trigger variable to True for testing
 yed.testing = True
+local_testing = os.environ.get("CI") == "True" and platform.platform().startswith("Windows")
 
 
 class Test_File:
@@ -59,7 +60,7 @@ class Test_File:
     # When: triggering open_with_yed
     # Then: file should be opened
     @pytest.mark.skipif(
-        os.environ.get("CI") != "True" or not platform.platform().startswith("Windows"),
+        local_testing is not True,
         reason="Test not suitable for CI / Non-windows environments at this time",
     )
     def test_file_object_app(self):
@@ -300,7 +301,7 @@ def test_nested_graph_edges():
 
 
 @pytest.mark.skipif(
-    os.environ.get("CI") != "True" or not platform.platform().startswith("Windows"),
+    local_testing is not True,
     reason="Test not suitable for CI / Non-windows environments at this time",
 )
 def test_start_yed():
@@ -310,7 +311,7 @@ def test_start_yed():
 
 
 @pytest.mark.skipif(
-    os.environ.get("CI") != "True" or not platform.platform().startswith("Windows"),
+    local_testing is not True,
     reason="Test not suitable for CI / Non-windows environments at this time",
 )
 def test_is_yed_open():
@@ -380,7 +381,7 @@ def test_round_trip():
     print(graph.custom_properties)
     graph.add_node("a")
     graph.add_node("b")
-    graph.add_edge("a", "b")
+    graph.add_edge("a", "b")  # .add_label("a_b")  #TODO: NEEDS LABEL TESTING
 
     # print(graph.stringify_graph())
 
@@ -558,3 +559,58 @@ def test_removes():
 
     with pytest.raises(RuntimeWarning):
         graph1.remove_group("group_na")
+
+
+def test_yed_kill():
+    # Given: yEd is installed
+    # When: yEd started and triggering yed kill
+    # Then: yEd closed / no longer running
+
+    # kill any yEd
+    yed.kill_yed()
+
+    # check for yed running
+    assert yed.is_yed_open() is False
+
+    # start yEd
+    yed.start_yed()
+    assert yed.is_yed_open() is True
+
+    yed.kill_yed()
+    assert yed.is_yed_open() is False
+
+    process = yed.start_yed()
+    assert process is not None
+
+    process = yed.start_yed()  # duplicate start
+    assert process is None
+
+
+@pytest.mark.skipif(
+    local_testing is not True,
+    reason="Test not suitable for CI / Non-windows environments at this time",
+)
+def test_yed_start_extended():
+    yed.kill_yed()
+    process = yed.start_yed(wait=True)
+    assert process is None
+
+
+@pytest.mark.skipif(
+    local_testing is not True,
+    reason="Test not suitable for CI / Non-windows environments at this time",
+)
+def test_open_yed_file():
+    graph_file = yed.File("examples\\yed_created_edges.graphml")
+
+    process = yed.open_yed_file(graph_file)
+    assert process is not None, "Expected a process object, but got None"
+    yed.kill_yed()
+
+    process = yed.open_yed_file(graph_file, force=True)
+    assert process is not None, "Expected a process object, but got None"
+    yed.kill_yed()
+
+    graph_file = yed.File("not_real_file.graphml")
+    process = yed.open_yed_file(graph_file)
+    assert process is None, "Should not have successfully spawned a process"
