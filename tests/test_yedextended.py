@@ -1,14 +1,12 @@
-import asyncio
 import os
 import platform
 import xml.etree.ElementTree as xml
-from time import sleep
 
 import pytest
 
 import yedextended as yed
 
-# Set the trigger variable to True for testing
+# Triggers around testing completion
 yed.testing = True
 local_testing = os.environ.get("CI") == "True" and platform.platform().startswith("Windows")
 
@@ -561,6 +559,10 @@ def test_removes():
         graph1.remove_group("group_na")
 
 
+@pytest.mark.skipif(
+    local_testing is not True,
+    reason="Test not suitable for CI / Non-windows environments at this time",
+)
 def test_yed_kill():
     # Given: yEd is installed
     # When: yEd started and triggering yed kill
