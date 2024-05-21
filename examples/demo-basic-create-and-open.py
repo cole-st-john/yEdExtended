@@ -29,4 +29,4 @@ graph1.add_edge("a", "e")
 graph1.add_edge("b", "group1_1")
 
 # Storing a graph to file and opening it
-graph_file = graph1.persist_graph("test.graphml", overwrite=True).open_with_yed()
+graph1.persist_graph("test.graphml", overwrite=True).open_with_yed()
