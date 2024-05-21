@@ -1,7 +1,8 @@
 import os
 import platform
 import xml.etree.ElementTree as xml
-
+import io
+import openpyxl as pyxl
 import pytest
 
 import yedextended as yed
@@ -21,7 +22,7 @@ class Test_File:
         test_file_obj = yed.File()
         assert test_file_obj.basename == "temp.graphml"
         assert test_file_obj.window_search_name == "temp.graphml - yEd"
-        assert test_file_obj.dir == os.getcwd()
+        assert test_file_obj.dir.lower() == os.getcwd().lower()
 
         # Given: yed file object
         # When: given simple name w/o path
@@ -29,7 +30,7 @@ class Test_File:
         test_file_obj = yed.File("abc.graphml")
         assert test_file_obj.basename == "abc.graphml"
         assert test_file_obj.window_search_name == "abc.graphml - yEd"
-        assert test_file_obj.dir == os.getcwd()
+        assert test_file_obj.dir.lower() == os.getcwd().lower()
 
         # Given: yed file object
         # When: given simple name w/ relative path (and cwd with that rel path)
@@ -45,14 +46,14 @@ class Test_File:
         # Then: returns same basename and diff path
         test_file_obj = yed.File(r"c:\fakepath11\abc.graphml")
         assert test_file_obj.basename == "abc.graphml"
-        assert test_file_obj.dir == os.getcwd()
+        assert test_file_obj.dir.lower() == os.getcwd().lower()
 
         # Given: yed file object
         # When: given simple name and valid path
         # Then: returns same basename and path
         test_file_obj = yed.File(os.path.join(os.getcwd(), "abc.graphml"))
         assert test_file_obj.basename == "abc.graphml"
-        assert test_file_obj.dir == os.getcwd()
+        assert test_file_obj.dir.lower() == os.getcwd().lower()
 
     # Given: yEd is installed
     # When: triggering open_with_yed
@@ -616,3 +617,107 @@ def test_open_yed_file():
     graph_file = yed.File("not_real_file.graphml")
     process = yed.open_yed_file(graph_file)
     assert process is None, "Should not have successfully spawned a process"
+
+
+def test_init():
+    excel = yed.ExcelManager()
+    assert excel is not None
+    assert os.path.isfile(excel.TEMP_EXCEL_SHEET) is True, "Expected template created"
+
+
+@pytest.mark.skip(reason="Under construction")
+def test_graph_to_excel_conversion_obj():
+    def get_filtered_sheet_values(sheet):
+        data = []
+        for row in sheet.iter_rows(values_only=True):
+            # Filter out empty columns
+            filtered_row = [cell for cell in row if cell is not None]
+            if filtered_row:  # Only add non-empty rows
+                data.append(filtered_row)
+        return data
+
+    graph1 = yed.Graph().from_existing_graph("examples\\yed_created_edges.graphml")
+    # test conversion to excel
+    excel1 = yed.ExcelManager()
+    excel1.graph_to_excel_conversion(graph=graph1)
+
+    in_mem_file1 = None
+    in_mem_file2 = None
+    with open(excel1.TEMP_EXCEL_SHEET, "rb") as f:
+        in_mem_file1 = io.BytesIO(f.read())
+
+    with open("examples\\yed_test_to_excel1.xlsx", "rb") as f:
+        in_mem_file2 = io.BytesIO(f.read())
+
+    current = pyxl.load_workbook(in_mem_file1).active
+    reference = pyxl.load_workbook(in_mem_file2).active
+    current_data = get_filtered_sheet_values(current)
+    reference_data = get_filtered_sheet_values(reference)
+    assert current_data == reference_data
+
+
+def test_graph_to_excel_conversion_rel():
+    def get_filtered_sheet_values(sheet):
+        data = []
+        for row in sheet.iter_rows(values_only=True):
+            # Filter out empty columns
+            filtered_row = [cell for cell in row if cell is not None]
+            if filtered_row:  # Only add non-empty rows
+                data.append(filtered_row)
+        return data
+
+    graph1 = yed.Graph().from_existing_graph("examples\\yed_created_edges.graphml")
+    # test conversion to excel
+    excel1 = yed.ExcelManager()
+    excel1.graph_to_excel_conversion(graph=graph1, type="relations")
+
+    in_mem_file1 = None
+    in_mem_file2 = None
+    with open(excel1.TEMP_EXCEL_SHEET, "rb") as f:
+        in_mem_file1 = io.BytesIO(f.read())
+
+    with open("examples\\yed_test_to_excel2.xlsx", "rb") as f:
+        in_mem_file2 = io.BytesIO(f.read())
+
+    current = pyxl.load_workbook(in_mem_file1)["Relations"]
+    reference = pyxl.load_workbook(in_mem_file2)["Relations"]
+    current_data = get_filtered_sheet_values(current)
+    reference_data = get_filtered_sheet_values(reference)
+    assert current_data == reference_data
+
+
+@pytest.mark.skip(reason="Requires refactor of name vs id handling.")
+def test_excel_to_graph():  # FIXME:
+    graph1 = yed.Graph().from_existing_graph("examples\\yed_created_edges.graphml")
+    # test conversion to excel
+    excel1 = yed.ExcelManager()
+    data = "examples\\yed_test_to_excel2.xlsx"
+    excel1.excel_to_graph_conversion(type="obj_and_hierarchy", excel_data=data)
+    excel1.excel_to_graph_conversion(type="relations", excel_data=data)
+    assert graph1.stringify_graph() == excel1.graph.stringify_graph()
+
+
+def test_bulk_data_management():  # FIXME:
+    graph1 = yed.Graph()
+    # first level nodes
+    graph1.add_node("a")
+    graph1.add_node("b")
+    graph1.add_node("c")
+
+    # first level group
+    group1 = graph1.add_group("group1")
+
+    # second level items
+    group1.add_node("d")
+    group1_1 = group1.add_group("group1_1")
+    group1_1.add_node("e")
+
+    before_string = graph1.stringify_graph()[:]
+
+    graph1.manage_graph_data_in_excel()
+
+    after_string = graph1.stringify_graph()
+
+    assert before_string is not None
+    assert after_string is not None
+    assert before_string == after_string

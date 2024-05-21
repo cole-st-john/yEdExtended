@@ -8,7 +8,8 @@ Currently supports...
 
 """
 
-import asyncio
+# import asyncio
+import io
 import os
 import platform
 import re
@@ -16,6 +17,7 @@ import subprocess
 import sys
 import xml.etree.ElementTree as ET
 from shutil import which
+from time import sleep
 from tkinter import messagebox as msg
 from typing import Any, List, Optional
 from xml.dom import minidom
@@ -28,7 +30,7 @@ import psutil
 # Enumerated parameters / Constants
 PROGRAM_NAME = "yEd.exe"
 
-# Initialize the trigger variable
+# Testing related triggers
 testing = False
 local_testing = None
 
@@ -116,15 +118,15 @@ class File:
         if temp_name_or_path:
             temp_name = os.path.basename(temp_name_or_path)
         temp_name = temp_name or f"{self.DEFAULT_FILE_NAME}"
-        if not temp_name.endswith(self.EXTENSION):
+        if not temp_name.endswith(self.EXTENSION) and not temp_name.endswith(".xlsx"):  # FIXME:
             temp_name += self.EXTENSION
         return temp_name
 
     def open_with_yed(self, force=False):
         """Method to open GraphML file directly with yEd application (must be installed and on path)."""
         print("opening...")
-        process = open_yed_file(self, force)
-        return process
+        open_yed_file(self, force)
+        return get_yed_pid()
 
 
 class Label:
@@ -998,6 +1000,466 @@ class GraphStats:
             self.all_edges[id] = edge
 
 
+class ExcelManager:
+    """Object to handle interfacing of graphs with Excel in bulk data management operations."""
+
+    def __init__(self):
+        # Template operations ==============
+        self.WB_TYPES = ["obj_and_hierarchy", "object_data", "relations"]
+        self.TEMP_EXCEL_SHEET = File("yedextended_temp.xlsx").fullpath
+        self.OBJECTS_WS_NAME = "Objects_and_Groups"
+        self.RELATIONS_WS_NAME = "Relations"
+
+        # Graph operations ================
+        self.graph = Graph()
+        self.original_stats = None
+        self.original_id_to_label = dict()
+        self.original_id_to_obj = dict()
+        self.obj_keys = list()
+        self.obj_values = list()
+        self.dup_objects = list()
+
+    def kill_excel(self):
+        os.system('taskkill /f /im "excel.exe"')
+
+    def excel_type_verification(self, type):
+        """Check if the given type is valid for Excel operations."""
+        self.type = type or self.WB_TYPES[0]  # default
+        if self.type not in self.WB_TYPES:
+            raise RuntimeWarning("Invalid Excel type. Use: %s" % ", ".join(self.WB_TYPES))
+
+    def create_excel_template(self, type):
+        """Generate excel wb per template for that wb type."""
+
+        self.excel_type_verification(type)
+
+        os.remove(self.TEMP_EXCEL_SHEET)
+
+        # create workbook
+        excel_wb = pyxl.Workbook()
+
+        # Inserting /organizing sheets
+        excel_ws = excel_wb.active
+
+        objects_ws = excel_wb.create_sheet(self.OBJECTS_WS_NAME, 0)
+        objects_ws.cell(
+            row=1, column=1, value="FORMAT -> LABEL | ID (INDENTATION OF INFO MEANS BELONGING TO GROUP ABOVE.)"
+        )
+
+        if self.type == "relations":
+            relations_ws = excel_wb.create_sheet(self.RELATIONS_WS_NAME, 1)
+            relations_ws.cell(row=1, column=1, value="FORMAT -> NODE1 | NODE2 | EDGE_LABEL | EDGE_ID ")
+
+        if excel_ws:
+            excel_wb.remove(excel_ws)  # removing default sheet
+        self.kill_excel()
+        excel_wb.save(self.TEMP_EXCEL_SHEET)
+        excel_wb.close()
+
+    def open_close_excel(*args, **kwargs):
+        """Provide wrapper for opening / saving / closing excel."""
+        save = kwargs.get("save", False)
+
+        def decorator(func):
+            def wrapper_func(self, *args, **kwargs):
+                in_mem_file = None
+                excel_data = kwargs.get("excel_data", None)
+                type = kwargs.get("type", None)
+                self.excel_type_verification(type)
+                if excel_data:
+                    if isinstance(excel_data, io.BytesIO):
+                        in_mem_file = excel_data
+                    elif isinstance(excel_data, str):
+                        with open(excel_data, "rb") as f:
+                            in_mem_file = io.BytesIO(f.read())
+                else:
+                    with open(self.TEMP_EXCEL_SHEET, "rb") as f:
+                        in_mem_file = io.BytesIO(f.read())
+                if not in_mem_file:
+                    raise RuntimeWarning("No excel data found to open.")
+                self.excel_wb = pyxl.load_workbook(in_mem_file)
+                self.objects_ws = self.excel_wb[self.OBJECTS_WS_NAME]
+                if self.type == "relations":
+                    self.relations_ws = self.excel_wb[self.RELATIONS_WS_NAME]
+                func(self, *args, **kwargs)
+                if save:
+                    self.excel_wb.save(self.TEMP_EXCEL_SHEET)
+                self.kill_excel()
+
+            return wrapper_func
+
+        return decorator
+
+    @open_close_excel(save=True)
+    def graph_to_excel_conversion(self, type=None, graph=None) -> None:
+        """Converting graph object to excel sheet format for bulk data management operations."""
+        if graph:
+            self.graph = graph
+
+        self.excel_type_verification(type)
+
+        self.create_excel_template(type)
+
+        self.original_stats = self.graph.gather_graph_stats()
+        row = 2
+
+        def graph_object_extract_to_excel(self, input_node, indent_level):
+            nonlocal row
+
+            sub_nodes = input_node.nodes
+            sub_groups = input_node.groups
+
+            for node in sub_nodes.values():
+                id = node.node_name or ""
+                labels = getattr(node, "list_of_labels")
+                # desc = node.get(description, "")
+                # url = node.get(url, "")
+                if labels:
+                    label = labels[0]._text  # ASSUMPTION: that this would make sense for most graphs
+                else:
+                    label = ""
+
+                self.original_id_to_label[id] = label
+                self.original_id_to_obj[id] = node
+
+                # posting to excel
+                self.objects_ws.cell(row=row, column=indent_level, value=label)
+                self.objects_ws.cell(row=row, column=indent_level + 1, value=id)
+                row += 1
+
+            for group in sub_groups.values():
+                id = group.group_id or ""
+                label = getattr(group, "label", "")
+
+                # posting to excel
+                self.objects_ws.cell(row=row, column=indent_level, value=label)
+                self.objects_ws.cell(row=row, column=indent_level + 1, value=id)
+                row += 1
+
+                self.original_id_to_label[id] = label
+                self.original_id_to_obj[id] = group
+
+                # Recursive extraction - adapting indent
+                graph_object_extract_to_excel(self, group, indent_level=indent_level + 1)
+
+        def relations_extract_to_excel(self, input_node):
+            nonlocal row
+
+            sub_groups = input_node.groups
+            sub_edges = input_node.edges
+
+            for edge in sub_edges.values():
+                id = edge.edge_id or ""
+                node1 = getattr(edge, "node1")
+                node2 = getattr(edge, "node2")
+                labels = getattr(edge, "list_of_labels")
+                if labels:
+                    label = labels[0]._text  # ASSUMPTION: that this would make sense for most graphs
+                else:
+                    label = ""
+
+                def deduplicate_obj(id):
+                    name = self.original_id_to_label[id]
+                    if name in self.dup_objects:
+                        return id + "##" + name
+                    else:
+                        return name
+
+                node1name = deduplicate_obj(node1)
+                node2name = deduplicate_obj(node2)
+
+                group_name = ""
+                if isinstance(input_node, Group):
+                    group_name = deduplicate_obj(input_node.group_id)
+
+                # post to excel
+                self.relations_ws.cell(row=row, column=col, value=node1name)
+                self.relations_ws.cell(row=row, column=col + 1, value=node2name)
+                self.relations_ws.cell(row=row, column=col + 2, value=label)
+                self.relations_ws.cell(row=row, column=col + 3, value=id)
+                self.relations_ws.cell(row=row, column=col + 4, value=group_name)
+                row += 1
+
+            for group in sub_groups.values():
+                relations_extract_to_excel(self, group)
+
+        if self.type == "obj_and_hierarchy" or self.type == "relations":
+            # self.objects_ws = self.excel_wb[self.OBJECTS_WS_NAME]
+            graph_object_extract_to_excel(self, self.graph, indent_level=1)
+
+        if self.type == "relations":
+            # self.relations_ws = self.excel_wb[self.RELATIONS_WS_NAME]
+            row = 2
+            col = 1
+            self.obj_keys = list(self.original_id_to_label.keys())
+            self.obj_values = list(self.original_id_to_label.values())
+            self.dup_objects = list(filter(lambda x: True if self.obj_values.count(x) > 1 else False, self.obj_values))
+
+            relations_extract_to_excel(self, self.graph)
+
+    @open_close_excel(save=False)
+    def excel_to_graph_conversion(self, type=None, excel_data=None):
+        self.excel_type_verification(type)
+
+        if not self.original_stats:
+            self.original_stats = Graph().gather_graph_stats()
+
+        if self.type == "obj_and_hierarchy":
+            # read the data back into structure - making changes
+            # read excel for data / get some stats
+
+            obj_data = list(self.objects_ws.values)
+            obj_data.pop(0)  # remove header
+
+            # identifying indents in excel (marker for groupings)
+            indent: list[int] = []
+            for row in obj_data:
+                none_i = 0
+                for val in row:
+                    if val == None:
+                        none_i += 1
+                    else:
+                        break  # per row for
+                indent.append(none_i)
+
+            # identifying groups
+            num_items = len(obj_data)
+            group_identifiers = list(map(lambda x: 1 if indent[x + 1] > indent[x] else 0, range(0, num_items - 1)))
+            group_identifiers.append(0)  # small limitation - deepest or last cannot be group
+
+            # identifying ownership
+            owner = dict()
+            indent_and_group_ident = list(zip(indent, group_identifiers))
+            for i in range(0, num_items):
+                owner[i] = None
+                if i == 0:
+                    continue
+                curr_indent = indent[i]
+                for j, (indent_i, is_group) in enumerate(reversed(indent_and_group_ident[:i])):
+                    if indent_i == curr_indent - 1 and is_group == 1:
+                        owner[i] = i - (j + 1)
+                        break
+
+            # of format: label|id (optional)
+
+            # identifying last used Id # TODO: NEEDS REFACTORING - ID COUNTING in yEd IS PER OWNER
+            ids = sorted(self.original_id_to_label)
+            if ids:
+                last_id = ids[-1]
+                last_id_num = re.match(r".*?(\d+)", last_id)
+                if last_id_num and last_id_num.group(1):
+                    last_id = int(last_id_num.group(1))
+            else:
+                last_id = 0
+
+            objects = list()
+            # Building / Modifying objects
+            all_bulk_mod_ids = set()
+            all_curr_obj_ids = set(self.original_id_to_obj.keys())
+            for i, (nr_indent, gr_i, obj_row) in enumerate(zip(indent, group_identifiers, obj_data)):
+                # possibilities:
+                #     completely new node / group
+                #     changed label - same node and structure
+                #     changed structuring - groups vs nodes
+                # changed structuring from node <-> group
+                #     changed owner
+                #     changed owning
+                #     there can be multiple groups at same level
+                #     negative - when in this mode - dont have ability to detect  / correct now problem relationships
+                # deleted nodes (id is no longer existing)
+
+                # Extracting label and id
+                label = obj_row[nr_indent]
+                id = None
+                try:
+                    id = obj_row[nr_indent + 1]
+                except Exception as e:
+                    print(f"Node missing Id: {e}. Id will be assigned.")
+                else:
+                    all_bulk_mod_ids.add(id)
+
+                # Checks
+                id_given = id is not None
+                id_exists = id is not None and id in self.original_id_to_label
+                is_group = gr_i == 1
+                is_node = gr_i == 0
+                is_group_owned = owner[i] is not None
+
+                # giving an id if not one assigned
+                if not id_given:
+                    if is_group:
+                        id = "g" + str(last_id + 1)
+                    if is_node:
+                        id = "n" + str(last_id + 1)
+                    last_id += 1
+
+                if is_group_owned:
+                    owner_inst = objects[owner[i]]
+
+                # This is a new object
+                if not id_exists:
+                    if is_group:
+                        if is_group_owned:
+                            objects.append(owner_inst.add_group(group_id=id, label=label))
+                        else:
+                            objects.append(self.graph.add_group(group_id=id, label=label))
+
+                    elif is_node:
+                        if is_group_owned:
+                            objects.append(owner_inst.add_node(node_name=id, label=label))
+                        else:
+                            objects.append(self.graph.add_node(node_name=id, label=label))
+
+                    else:
+                        raise NotImplementedError("This state not implemented")
+
+                elif id_exists:
+                    # changed name
+                    existing_obj = self.original_id_to_obj[id]
+
+                    # changed structuring from node <-> group
+
+                    # changed owner
+
+                    # changed owning
+
+                    objects.append(existing_obj)
+
+                    pass
+
+            # Deleted objects
+            all_deleted_obj_ids = all_curr_obj_ids.difference(all_bulk_mod_ids)
+            for obj_id in all_deleted_obj_ids:
+                obj: Group | Node = self.original_id_to_obj[obj_id]
+                parent = obj.parent or self.graph
+                if isinstance(obj, Group):  # group
+                    # find all immediate dependents and connect them to owner
+                    parent.remove_group(obj_id)
+
+                elif isinstance(obj, Node):  # node
+                    parent.remove_node(obj_id)
+
+        elif self.type == "relations":  # TODO: Implement this
+            # Columns
+            # node1name
+            # node2name
+            # label
+            # id
+            self.relations_ws = self.excel_wb[self.RELATIONS_WS_NAME]
+            relations_data = self.relations_ws.values
+            row_length = None
+            edge_ids_after_mod = set()
+
+            count = 0
+            for row in relations_data:
+                if count == 0:
+                    row_length = len(row)
+                    count += 1
+                    continue
+                node1_name = None
+                node2_name = None
+                edge_label = None
+                edge_id = None
+
+                if row_length == 4:
+                    node1_name, node2_name, edge_label, edge_id = row
+                elif row_length == 3:
+                    node1_name, node2_name, edge_label = row
+                elif row_length == 2:
+                    node1_name, node2_name = row
+
+                edge_id = str(edge_id)
+
+                two_node_id_check = node1_name is not None and node2_name is not None
+                if not two_node_id_check:
+                    continue
+
+                id_assigned = edge_id is not None
+                label_check = edge_label is not None
+
+                id_exist = False
+                if id_assigned:
+                    id_exist = str(edge_id) in self.original_stats.all_edges.keys()
+
+                node1_found = node1_name in self.obj_values
+                node1_dedup_req = node1_name in self.dup_objects
+                if node1_found and not node1_dedup_req:
+                    node1_id = self.obj_keys[self.obj_values.index(node1_name)]
+                # TODO: ADD LOGIC FOR node1_found and node1_dedup_req
+
+                node2_found = node2_name in self.obj_values
+                node2_dedup_req = node2_name in self.dup_objects
+                if node2_found and not node2_dedup_req:
+                    node2_id = self.obj_keys[self.obj_values.index(node2_name)]
+                # TODO: ADD LOGIC FOR node2_found and node2_dedup_req
+
+                nodes_found = False
+                if node1_id and node2_id:
+                    nodes_found = True
+
+                # modify
+                if id_exist and nodes_found:
+                    # make changes - but only if nodes are found
+                    edge = self.original_stats.all_edges[edge_id]
+                    edge.node1_id = node1_id
+                    edge.node2_id = node2_id
+                    edge.label = edge_label
+
+                    # keep track of edges that were existing and still existing
+                    edge_ids_after_mod.add(edge.edge_id)
+
+                elif not nodes_found:
+                    if not node1_found:
+                        raise NameError(f"Node {node1_id} not found.")
+                    if not node2_found:
+                        raise NameError(f"Node {node2_id} not found.")
+
+                else:  # new / id not existing
+                    edge_init_dict = dict()
+                    edge_init_dict["node1_id"] = node1_id
+                    edge_init_dict["node2_id"] = node2_id
+                    edge_init_dict["label"] = edge_label
+                    edge_init_dict = {key: value for (key, value) in edge_init_dict.items() if value is not None}
+                    self.graph.add_edge(**edge_init_dict)
+
+            # Deleting edges that have been deleted
+            all_bulk_edge_ids = set(list(self.original_stats.all_edges.keys()))
+            all_deleted_edge_ids = all_bulk_edge_ids.difference(edge_ids_after_mod)
+            for del_edge_id in all_deleted_edge_ids:
+                edge_obj: Edge = self.original_stats.all_edges[del_edge_id]
+                parent = edge_obj.parent or self.graph
+                parent.remove_edge(del_edge_id)
+
+        elif self.type == "object_data":  # TODO: Implement management of deeper data - url, description, formatting
+            raise NotImplementedError("This functionality is not yet implemented.")
+
+        # Run Checks to avoid problems of manual data management
+        self.graph.run_graph_rules()
+
+    def give_user_chance_to_modify(self):
+        # FIXME: make sure not open
+
+        # kill excel process
+        self.kill_excel()
+
+        if not testing:
+            os.startfile(self.TEMP_EXCEL_SHEET)
+
+            user_response = msg.askokcancel(
+                title="yEd Bulk Data Management - Async", message="To process changes, save workbook and press ok."
+            )
+
+            if not user_response:
+                print("User cancelled operation.")
+                exit()
+
+    def bulk_data_management(self, type=None, graph=None, excel_data=None):
+        """Process of converting to excel for manual operations, allows user to modify and then convert back to graph."""
+        self.graph_to_excel_conversion(type=type, graph=graph)
+        self.give_user_chance_to_modify()
+        self.excel_to_graph_conversion(excel_data)
+
+
 class Graph:
     """Graph structure - carries yEd graph information"""
 
@@ -1199,7 +1661,7 @@ class Graph:
 
         # recheck the file as existing or not
         graph_file.full_path_validate()
-
+        print("persisting graph to file:", graph_file.fullpath)
         return graph_file
 
     def stringify_graph(self):
@@ -1481,385 +1943,7 @@ class Graph:
 
     def manage_graph_data_in_excel(self, type=None):
         """Port graph data into Excel in several formats for easy and bulk creation and management.  Then ports back into python graph structure."""
-
-        MANAGE_TYPES = ["obj_and_hierarchy", "object_data", "relations"]
-        type = type or "obj_and_hierarchy"  # default
-        checkValue("type", type, MANAGE_TYPES)  # verification
-
-        original_stats = self.gather_graph_stats()
-        id_to_label = dict()
-        id_to_obj = dict()
-
-        # Create excel template ============================================
-        TEMP_EXCEL_SHEET = "yedextended_temp.xlsx"
-
-        # create workbook
-        excel_wb = pyxl.Workbook()
-
-        # Inserting /organizing sheets
-        excel_ws = excel_wb.active
-        row = 2
-
-        OBJECTS_WS_NAME = "Objects_and_Groups"
-        objects_ws = excel_wb.create_sheet(OBJECTS_WS_NAME, 0)
-        objects_ws.cell(
-            row=1, column=1, value="FORMAT -> LABEL | ID (INDENTATION OF INFO MEANS BELONGING TO GROUP ABOVE.)"
-        )
-
-        if type == "relations":
-            RELATIONS_WS_NAME = "Relations"
-            relations_ws = excel_wb.create_sheet(RELATIONS_WS_NAME, 1)
-            relations_ws.cell(row=1, column=1, value="FORMAT -> NODE1 | NODE2 | EDGE_LABEL | EDGE_ID ")
-
-        if excel_ws:
-            excel_wb.remove(excel_ws)  # removing default sheet
-
-        def graph_object_extract_to_excel(self, input_node, indent_level):
-            nonlocal row
-            nonlocal id_to_label
-            nonlocal id_to_obj
-
-            sub_nodes = input_node.nodes
-            sub_groups = input_node.groups
-
-            for node in sub_nodes.values():
-                id = node.node_name or ""
-                labels = getattr(node, "list_of_labels")
-                # desc = node.get(description, "")
-                # url = node.get(url, "")
-                if labels:
-                    label = labels[0]._text  # ASSUMPTION: that this would make sense for most graphs
-                else:
-                    label = ""
-
-                id_to_label[id] = label
-                id_to_obj[id] = node
-
-                # posting to excel
-                objects_ws.cell(row=row, column=indent_level, value=label)
-                objects_ws.cell(row=row, column=indent_level + 1, value=id)
-                row += 1
-
-            for group in sub_groups.values():
-                id = group.group_id or ""
-                label = getattr(group, "label", "")
-
-                # posting to excel
-                objects_ws.cell(row=row, column=indent_level, value=label)
-                objects_ws.cell(row=row, column=indent_level + 1, value=id)
-                row += 1
-
-                id_to_label[id] = label
-                id_to_obj[id] = group
-
-                # Recursive extraction - adapting indent
-                graph_object_extract_to_excel(self, group, indent_level=indent_level + 1)
-
-        graph_object_extract_to_excel(self, self, indent_level=1)
-
-        # Extract Relations =======================================================
-        if type == "relations":
-            row = 2
-            col = 1
-
-            obj_keys = list(id_to_label.keys())
-            obj_values = list(id_to_label.values())
-            dup_objects = list(filter(lambda x: True if obj_values.count(x) > 1 else False, obj_values))
-
-            def relations_extract_to_excel(self, input_node):
-                nonlocal row
-
-                sub_groups = input_node.groups
-                sub_edges = input_node.edges
-
-                for edge in sub_edges.values():
-                    id = edge.edge_id or ""
-                    node1 = getattr(edge, "node1")
-                    node2 = getattr(edge, "node2")
-                    labels = getattr(edge, "list_of_labels")
-                    if labels:
-                        label = labels[0]._text  # ASSUMPTION: that this would make sense for most graphs
-                    else:
-                        label = ""
-
-                    def deduplicate_obj(id):
-                        name = id_to_label[id]
-                        if name in dup_objects:
-                            return id + "##" + name
-                        else:
-                            return name
-
-                    node1name = deduplicate_obj(node1)
-                    node2name = deduplicate_obj(node2)
-
-                    group_name = ""
-                    if isinstance(input_node, Group):
-                        group_name = deduplicate_obj(input_node.group_id)
-
-                    # post to excel
-                    relations_ws.cell(row=row, column=col, value=node1name)
-                    relations_ws.cell(row=row, column=col + 1, value=node2name)
-                    relations_ws.cell(row=row, column=col + 2, value=label)
-                    relations_ws.cell(row=row, column=col + 3, value=id)
-                    relations_ws.cell(row=row, column=col + 4, value=group_name)
-                    row += 1
-
-                for group in sub_groups.values():
-                    relations_extract_to_excel(self, group)
-
-            relations_extract_to_excel(self, self)
-
-        #  saving and opening excel for manual editing
-        excel_wb.save(TEMP_EXCEL_SHEET)
-        excel_wb.close()
-
-        # opening excel for manual editing
-        if not testing:
-            os.startfile(TEMP_EXCEL_SHEET)
-
-            user_response = msg.askokcancel(
-                title="yEd Bulk Data Management - Async", message="To process changes, save workbook and press ok."
-            )
-
-            if not user_response:
-                print("User cancelled operation.")
-                exit()
-
-        excel_wb = pyxl.load_workbook(TEMP_EXCEL_SHEET)
-
-        if type == "obj_and_hierarchy":
-            # read the data back into structure - making changes
-            # read excel for data / get some stats
-            objects_ws = excel_wb[OBJECTS_WS_NAME]
-            obj_data = list(objects_ws.values)
-            obj_data.pop(0)  # remove header
-
-            # identifying indents in excel (marker for groupings)
-            indent: list[int] = []
-            for row in obj_data:
-                none_i = 0
-                for val in row:
-                    if val == None:
-                        none_i += 1
-                    else:
-                        break  # per row for
-                indent.append(none_i)
-
-            # identifying groups
-            num_items = len(obj_data)
-            group_identifiers = list(map(lambda x: 1 if indent[x + 1] > indent[x] else 0, range(0, num_items - 1)))
-            group_identifiers.append(0)  # small limitation - deepest or last cannot be group
-
-            # identifying ownership
-            owner = dict()
-            indent_and_group_ident = list(zip(indent, group_identifiers))
-            for i in range(0, num_items):
-                owner[i] = None
-                if i == 0:
-                    continue
-                curr_indent = indent[i]
-                for j, (indent_i, is_group) in enumerate(reversed(indent_and_group_ident[:i])):
-                    if indent_i == curr_indent - 1 and is_group == 1:
-                        owner[i] = i - (j + 1)
-                        break
-
-            # of format: label|id (optional)
-
-            # identifying last used Id # TODO: NEEDS REFACTORING - ID COUNTING in yEd IS PER OWNER
-            ids = sorted(id_to_label)
-            if ids:
-                last_id = ids[-1]
-                last_id_num = re.match(r".*?(\d+)", last_id)
-                if last_id_num and last_id_num.group(1):
-                    last_id = int(last_id_num.group(1))
-            else:
-                last_id = 0
-
-            objects = list()
-            # Building / Modifying objects
-            all_bulk_mod_ids = set()
-            all_curr_obj_ids = set(id_to_obj.keys())
-            for i, (nr_indent, gr_i, obj_row) in enumerate(zip(indent, group_identifiers, obj_data)):
-                # possibilities:
-                #     completely new node / group
-                #     changed label - same node and structure
-                #     changed structuring - groups vs nodes
-                # changed structuring from node <-> group
-                #     changed owner
-                #     changed owning
-                #     there can be multiple groups at same level
-                #     negative - when in this mode - dont have ability to detect  / correct now problem relationships
-                # deleted nodes (id is no longer existing)
-
-                # Extracting label and id
-                label = obj_row[nr_indent]
-                id = None
-                try:
-                    id = obj_row[nr_indent + 1]
-                except Exception as e:
-                    print(f"Node missing Id: {e}. Id will be assigned.")
-                else:
-                    all_bulk_mod_ids.add(id)
-
-                # Checks
-                id_given = id is not None
-                id_exists = id is not None and id in id_to_label
-                is_group = gr_i == 1
-                is_node = gr_i == 0
-                is_group_owned = owner[i] is not None
-
-                # giving an id if not one assigned
-                if not id_given:
-                    if is_group:
-                        id = "g" + str(last_id + 1)
-                    if is_node:
-                        id = "n" + str(last_id + 1)
-                    last_id += 1
-
-                if is_group_owned:
-                    owner_inst = objects[owner[i]]
-
-                # This is a new object
-                if not id_exists:
-                    if is_group:
-                        if is_group_owned:
-                            objects.append(owner_inst.add_group(group_id=id, label=label))
-                        else:
-                            objects.append(self.add_group(group_id=id, label=label))
-
-                    elif is_node:
-                        if is_group_owned:
-                            objects.append(owner_inst.add_node(node_name=id, label=label))
-                        else:
-                            objects.append(self.add_node(node_name=id, label=label))
-
-                    else:
-                        raise NotImplementedError("This state not implemented")
-
-                elif id_exists:
-                    # changed name
-                    existing_obj = id_to_obj[id]
-
-                    # changed structuring from node <-> group
-
-                    # changed owner
-
-                    # changed owning
-
-                    objects.append(existing_obj)
-
-                    pass
-
-            # Deleted objects
-            all_deleted_obj_ids = all_curr_obj_ids.difference(all_bulk_mod_ids)
-            for obj_id in all_deleted_obj_ids:
-                obj: Group | Node = id_to_obj[obj_id]
-                parent = obj.parent or self
-                if isinstance(obj, Group):  # group
-                    # find all immediate dependents and connect them to owner
-                    parent.remove_group(obj_id)
-
-                elif isinstance(obj, Node):  # node
-                    parent.remove_node(obj_id)
-
-        elif type == "relations":  # TODO: Implement this
-            # Columns
-            # node1name
-            # node2name
-            # label
-            # id
-            relations_ws = excel_wb[RELATIONS_WS_NAME]
-            relations_data = relations_ws.values
-            row_length = None
-            edge_ids_after_mod = set()
-
-            count = 0
-            for row in relations_data:
-                if count == 0:
-                    row_length = len(row)
-                    count += 1
-                    continue
-                node1_name = None
-                node2_name = None
-                edge_label = None
-                edge_id = None
-
-                if row_length == 4:
-                    node1_name, node2_name, edge_label, edge_id = row
-                elif row_length == 3:
-                    node1_name, node2_name, edge_label = row
-                elif row_length == 2:
-                    node1_name, node2_name = row
-
-                edge_id = str(edge_id)
-
-                two_node_id_check = node1_name is not None and node2_name is not None
-                if not two_node_id_check:
-                    continue
-
-                id_assigned = edge_id is not None
-                label_check = edge_label is not None
-
-                id_exist = False
-                if id_assigned:
-                    id_exist = str(edge_id) in original_stats.all_edges.keys()
-
-                node1_found = node1_name in obj_values
-                node1_dedup_req = node1_name in dup_objects
-                if node1_found and not node1_dedup_req:
-                    node1_id = obj_keys[obj_values.index(node1_name)]
-                # TODO: ADD LOGIC FOR node1_found and node1_dedup_req
-
-                node2_found = node2_name in obj_values
-                node2_dedup_req = node2_name in dup_objects
-                if node2_found and not node2_dedup_req:
-                    node2_id = obj_keys[obj_values.index(node2_name)]
-                # TODO: ADD LOGIC FOR node2_found and node2_dedup_req
-
-                nodes_found = False
-                if node1_id and node2_id:
-                    nodes_found = True
-
-                # modify
-                if id_exist and nodes_found:
-                    # make changes - but only if nodes are found
-                    edge = original_stats.all_edges[edge_id]
-                    edge.node1_id = node1_id
-                    edge.node2_id = node2_id
-                    edge.label = edge_label
-
-                    # keep track of edges that were existing and still existing
-                    edge_ids_after_mod.add(edge.edge_id)
-
-                elif not nodes_found:
-                    if not node1_found:
-                        raise NameError(f"Node {node1_id} not found.")
-                    if not node2_found:
-                        raise NameError(f"Node {node2_id} not found.")
-
-                else:  # new / id not existing
-                    edge_init_dict = dict()
-                    edge_init_dict["node1_id"] = node1_id
-                    edge_init_dict["node2_id"] = node2_id
-                    edge_init_dict["label"] = edge_label
-                    edge_init_dict = {key: value for (key, value) in edge_init_dict.items() if value is not None}
-                    self.add_edge(**edge_init_dict)
-
-            # Deleting edges that have been deleted
-            all_bulk_edge_ids = set(list(original_stats.all_edges.keys()))
-            all_deleted_edge_ids = all_bulk_edge_ids.difference(edge_ids_after_mod)
-            for del_edge_id in all_deleted_edge_ids:
-                obj: Edge = original_stats.all_edges[del_edge_id]
-                parent = obj.parent or self
-                parent.remove_edge(del_edge_id)
-
-        elif type == "object_data":  # TODO: Implement management of deeper data - url, description, formatting
-            raise NotImplementedError("This functionality is not yet implemented.")
-
-        excel_wb.close()
-
-        # Run Checks to avoid problems of manual data management
-        self.run_graph_rules()
+        ExcelManager().bulk_data_management(graph=self, type=type)
 
     def gather_graph_stats(self) -> GraphStats:
         """Creating current Graph Stats for the current graph"""
@@ -1948,12 +2032,11 @@ def start_subprocess(command):
 
 def open_yed_file(file: File, force=False):
     """Opens yed file - also will start yed if not open. Returns process or None."""
-    process = None
-
     if not file.file_exists:
         return None
 
     if force:
+        print("Act on yEd message box...")
         answer = msg.askokcancel(title="Force yEd App Close", message="Are you ok to force yEd closure?")
         if not answer:
             print("Exiting program")
@@ -1961,10 +2044,14 @@ def open_yed_file(file: File, force=False):
 
         kill_yed()
 
-    command = [PROGRAM_NAME, file.fullpath]
-    process = start_subprocess(command)
+    os.startfile(file.fullpath)
 
-    return process or None
+    if force:
+        sleep(4)
+        if get_yed_pid() is None:
+            os.startfile(file.fullpath)
+
+    return get_yed_process()
 
 
 def start_yed(wait=False):
