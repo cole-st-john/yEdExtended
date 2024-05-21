@@ -621,6 +621,8 @@ def test_open_yed_file():
 
 def test_init():
     excel = yed.ExcelManager()
+    graph = yed.Graph()
+    excel.graph_to_excel_conversion(graph=graph)
     assert excel is not None
     assert os.path.isfile(excel.TEMP_EXCEL_SHEET) is True, "Expected template created"
 

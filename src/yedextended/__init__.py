@@ -1033,7 +1033,8 @@ class ExcelManager:
 
         self.excel_type_verification(type)
 
-        os.remove(self.TEMP_EXCEL_SHEET)
+        if os.path.isfile(self.TEMP_EXCEL_SHEET):
+            os.remove(self.TEMP_EXCEL_SHEET)
 
         # create workbook
         excel_wb = pyxl.Workbook()
@@ -1073,8 +1074,12 @@ class ExcelManager:
                         with open(excel_data, "rb") as f:
                             in_mem_file = io.BytesIO(f.read())
                 else:
+                    if not os.path.isfile(self.TEMP_EXCEL_SHEET):
+                        self.create_excel_template(type)
+                        sleep(1)
                     with open(self.TEMP_EXCEL_SHEET, "rb") as f:
                         in_mem_file = io.BytesIO(f.read())
+
                 if not in_mem_file:
                     raise RuntimeWarning("No excel data found to open.")
                 self.excel_wb = pyxl.load_workbook(in_mem_file)
