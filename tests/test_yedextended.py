@@ -391,6 +391,9 @@ def test_round_trip():
     graph.add_node("c")
     assert graph.stringify_graph() != graph_after.stringify_graph()
 
+    if os.path.exists(FILE):
+        os.remove(FILE)
+
 
 def test_custom_property_assignment():
     graph1 = yed.Graph()
@@ -443,8 +446,16 @@ def test_persist_graph():
     file2_handle = open(file2, "r")
     file1_contents = file1_handle.read()
     file2_contents = file2_handle.read()
+    file1_handle.close()
+    file2_handle.close()
     assert file1_contents != file2_contents
     assert file2_contents.count("\n") > file1_contents.count("\n")
+
+    # Ensure cleaned up
+    if os.path.exists(file1):
+        os.remove(file1)
+    if os.path.exists(file2):
+        os.remove(file2)
 
 
 def test_from_existing_graph():
@@ -627,7 +638,6 @@ def test_init():
     assert os.path.isfile(excel.TEMP_EXCEL_SHEET) is True, "Expected template created"
 
 
-@pytest.mark.skip(reason="Under construction")
 def test_graph_to_excel_conversion_obj():
     def get_filtered_sheet_values(sheet):
         data = []
@@ -656,6 +666,9 @@ def test_graph_to_excel_conversion_obj():
     current_data = get_filtered_sheet_values(current)
     reference_data = get_filtered_sheet_values(reference)
     assert current_data == reference_data
+
+    if os.path.exists(excel1.TEMP_EXCEL_SHEET):
+        os.remove(excel1.TEMP_EXCEL_SHEET)
 
 
 def test_graph_to_excel_conversion_rel():
@@ -687,20 +700,13 @@ def test_graph_to_excel_conversion_rel():
     reference_data = get_filtered_sheet_values(reference)
     assert current_data == reference_data
 
-
-@pytest.mark.skip(reason="Requires refactor of name vs id handling.")
-def test_excel_to_graph():  # FIXME:
-    graph1 = yed.Graph().from_existing_graph("examples\\yed_created_edges.graphml")
-    # test conversion to excel
-    excel1 = yed.ExcelManager()
-    data = "examples\\yed_test_to_excel2.xlsx"
-    excel1.excel_to_graph_conversion(type="obj_and_hierarchy", excel_data=data)
-    excel1.excel_to_graph_conversion(type="relations", excel_data=data)
-    assert graph1.stringify_graph() == excel1.graph.stringify_graph()
+    if os.path.exists(excel1.TEMP_EXCEL_SHEET):
+        os.remove(excel1.TEMP_EXCEL_SHEET)
 
 
 def test_bulk_data_management():  # FIXME:
     graph1 = yed.Graph()
+
     # first level nodes
     graph1.add_node("a")
     graph1.add_node("b")
@@ -714,12 +720,28 @@ def test_bulk_data_management():  # FIXME:
     group1_1 = group1.add_group("group1_1")
     group1_1.add_node("e")
 
+    # shallow copy the stringified graph
     before_string = graph1.stringify_graph()[:]
 
-    graph1.manage_graph_data_in_excel()
+    # doing nothing in excel should lead to the same graph being built back up (when talking about simple obj model)
+    excel_obj = graph1.manage_graph_data_in_excel()
 
     after_string = graph1.stringify_graph()
 
     assert before_string is not None
     assert after_string is not None
     assert before_string == after_string
+
+    if os.path.exists(excel_obj.TEMP_EXCEL_SHEET):
+        os.remove(excel_obj.TEMP_EXCEL_SHEET)
+
+
+@pytest.mark.skip(reason="Requires refactor of name vs id handling.")
+def test_excel_to_graph():  # FIXME:
+    graph1 = yed.Graph().from_existing_graph("examples\\yed_created_edges.graphml")
+    # test conversion to excel
+    excel1 = yed.ExcelManager()
+    data = "examples\\yed_test_to_excel2.xlsx"
+    excel1.excel_to_graph_conversion(type="obj_and_hierarchy", excel_data=data)
+    excel1.excel_to_graph_conversion(type="relations", excel_data=data)
+    assert graph1.stringify_graph() == excel1.graph.stringify_graph()

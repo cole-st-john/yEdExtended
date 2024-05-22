@@ -1067,18 +1067,31 @@ class ExcelManager:
                 excel_data = kwargs.get("excel_data", None)
                 type = kwargs.get("type", None)
                 self.excel_type_verification(type)
-                if excel_data:
-                    if isinstance(excel_data, io.BytesIO):
-                        in_mem_file = excel_data
-                    elif isinstance(excel_data, str):
-                        with open(excel_data, "rb") as f:
-                            in_mem_file = io.BytesIO(f.read())
-                else:
-                    if not os.path.isfile(self.TEMP_EXCEL_SHEET):
-                        self.create_excel_template(type)
-                        sleep(1)
+
+                if save:
+                    self.create_excel_template(type)
+                    sleep(0.5)
                     with open(self.TEMP_EXCEL_SHEET, "rb") as f:
                         in_mem_file = io.BytesIO(f.read())
+
+                else:
+                    # In case we are given a file path or in-memory file, for excel to graph
+                    if excel_data:
+                        if isinstance(excel_data, io.BytesIO):
+                            in_mem_file = excel_data
+                        elif isinstance(excel_data, str):
+                            with open(excel_data, "rb") as f:
+                                in_mem_file = io.BytesIO(f.read())
+                    # Primary use case - from template for graph to excel
+                    else:
+                        with open(self.TEMP_EXCEL_SHEET, "rb") as f:
+                            in_mem_file = io.BytesIO(f.read())
+
+                        # if not os.path.isfile(self.TEMP_EXCEL_SHEET):
+                        #     self.create_excel_template(type)
+                        #     sleep(1)
+                        # with open(self.TEMP_EXCEL_SHEET, "rb") as f:
+                        #     in_mem_file = io.BytesIO(f.read())
 
                 if not in_mem_file:
                     raise RuntimeWarning("No excel data found to open.")
@@ -1100,10 +1113,6 @@ class ExcelManager:
         """Converting graph object to excel sheet format for bulk data management operations."""
         if graph:
             self.graph = graph
-
-        self.excel_type_verification(type)
-
-        self.create_excel_template(type)
 
         self.original_stats = self.graph.gather_graph_stats()
         row = 2
@@ -1462,7 +1471,9 @@ class ExcelManager:
         """Process of converting to excel for manual operations, allows user to modify and then convert back to graph."""
         self.graph_to_excel_conversion(type=type, graph=graph)
         self.give_user_chance_to_modify()
-        self.excel_to_graph_conversion(excel_data)
+        self.excel_to_graph_conversion(type=type, excel_data=excel_data)
+
+        return self
 
 
 class Graph:
@@ -1948,7 +1959,7 @@ class Graph:
 
     def manage_graph_data_in_excel(self, type=None):
         """Port graph data into Excel in several formats for easy and bulk creation and management.  Then ports back into python graph structure."""
-        ExcelManager().bulk_data_management(graph=self, type=type)
+        return ExcelManager().bulk_data_management(graph=self, type=type)
 
     def gather_graph_stats(self) -> GraphStats:
         """Creating current Graph Stats for the current graph"""
