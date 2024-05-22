@@ -376,13 +376,10 @@ def test_round_trip():
         os.remove(FILE)
 
     graph = yed.Graph()
-    print(graph.stringify_graph())
-    print(graph.custom_properties)
+
     graph.add_node("a")
     graph.add_node("b")
     graph.add_edge("a", "b")  # .add_label("a_b")  #TODO: NEEDS LABEL TESTING
-
-    # print(graph.stringify_graph())
 
     graph_file = graph.persist_graph(FILE)
     graph_after = yed.Graph().from_existing_graph(graph_file)
@@ -464,13 +461,12 @@ def test_from_existing_graph():
     with pytest.raises(FileNotFoundError):
         yed.Graph().from_existing_graph("not_existing_file")
 
-    test_graph = yed.Graph().from_existing_graph("examples\\yed_created_edges.graphml")  # TODO:
+    test_graph = yed.Graph().from_existing_graph("examples\\yed_created_edges.graphml")
     test_graph_stats = test_graph.gather_graph_stats()
     assert test_graph_stats.all_nodes["n0"].url is not None
 
 
 def test_create_graph_with_url_description():
-    # FIXME:
     FILE1 = "test.graphml"
 
     graph1 = yed.Graph()
@@ -508,12 +504,11 @@ def test_create_graph_with_url_description():
 def test_create_edge_w_o_nodes():
     graph1 = yed.Graph()
     graph1.add_edge("a", "b")
-    # FIXME:
+    assert graph1.nodes["a"] is not None
+    assert graph1.nodes["b"] is not None
 
 
 def test_removes():
-    # FIXME:
-
     graph1 = yed.Graph()
 
     # first level nodes
@@ -704,7 +699,7 @@ def test_graph_to_excel_conversion_rel():
         os.remove(excel1.TEMP_EXCEL_SHEET)
 
 
-def test_bulk_data_management():  # FIXME:
+def test_bulk_data_management():
     graph1 = yed.Graph()
 
     # first level nodes

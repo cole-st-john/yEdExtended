@@ -89,7 +89,7 @@ def checkValue(
 
 
 class File:
-    """Object to check and act on yEd files / filepaths."""
+    """Object to check and act on yEd files / filepaths (or the excel files during bulk data management)."""
 
     def __init__(self, file_name_or_path=None):
         self.DEFAULT_FILE_NAME = "temp"
@@ -118,13 +118,13 @@ class File:
         if temp_name_or_path:
             temp_name = os.path.basename(temp_name_or_path)
         temp_name = temp_name or f"{self.DEFAULT_FILE_NAME}"
-        if not temp_name.endswith(self.EXTENSION) and not temp_name.endswith(".xlsx"):  # FIXME:
+        if not temp_name.endswith(self.EXTENSION) and not temp_name.endswith(".xlsx"):
             temp_name += self.EXTENSION
         return temp_name
 
     def open_with_yed(self, force=False):
         """Method to open GraphML file directly with yEd application (must be installed and on path)."""
-        print("opening...")
+        print("opening file with yed...")
         open_yed_file(self, force)
         return get_yed_pid()
 
@@ -493,7 +493,6 @@ class Group:
 
     def add_edge(self, node1_id, node2_id, **kwargs):
         """Adds edge - input: node names, not actual node objects"""
-        # TODO: DO EDGES NEED A PARENT FOR EASE OF OPERATIONS
 
         node1 = self.parent_graph.existing_entities.get(node1_id) or self.add_node(node1_id)
 
@@ -1353,7 +1352,7 @@ class ExcelManager:
                 elif isinstance(obj, Node):  # node
                     parent.remove_node(obj_id)
 
-        elif self.type == "relations":  # TODO: Implement this
+        elif self.type == "relations":
             # Columns
             # node1name
             # node2name
@@ -1451,8 +1450,7 @@ class ExcelManager:
         self.graph.run_graph_rules()
 
     def give_user_chance_to_modify(self):
-        # FIXME: make sure not open
-
+        """Open Excel for user to modify data."""
         # kill excel process
         self.kill_excel()
 
@@ -1492,7 +1490,7 @@ class Graph:
 
         self.custom_properties = []
 
-        self.graphml: ET.Element  # FIXME:
+        self.graphml: ET.Element
 
     # Addition of items ============================
     def add_node(self, node_name, **kwargs):
@@ -1581,7 +1579,7 @@ class Graph:
         del self.edges[edge_id]
         self.num_edges -= 1
 
-    # TODO: REMOVE / MODIFY CUSTOM PROPERTIES FUNCTIONALITY
+    # TODO: ADD FUNCTIONALITY TO REMOVE / MODIFY CUSTOM PROPERTIES
 
     # Graph functionalities ===========================
     def construct_graphml(self):
@@ -1786,7 +1784,6 @@ class Graph:
                             if info is not None:
                                 info = re.sub(r"<!\[CDATA\[", "", info)  # unneeded schema
                                 info = re.sub(r"\]\]>", "", info)  # unneeded schema
-                                print("info:", info)
 
                                 the_key = data_node.attrib.get("key")
 
@@ -1813,7 +1810,7 @@ class Graph:
                         if proxy is not None:
                             realizer = proxy.find("Realizers")
 
-                            group_nodes = realizer.findall("GroupNode")  # TODO: When are there multiple?
+                            group_nodes = realizer.findall("GroupNode")
 
                             for group_node in group_nodes:
                                 geom_node = group_node.find("Geometry")
@@ -1856,8 +1853,6 @@ class Graph:
                                     # group_init_dict["aaaa"] = group_state_node.attrib.get("closedWidth",None)
                                     # group_init_dict["aaaa"] = group_state_node.attrib.get("innerGraphDisplayEnabled",None)
 
-                                # TODO: GATHER THE MULTIPLE GROUP NODES
-
                                 break
 
                         else:
@@ -1865,7 +1860,6 @@ class Graph:
                             if info is not None:
                                 info = re.sub(r"<!\[CDATA\[", "", info)  # unneeded schema
                                 info = re.sub(r"\]\]>", "", info)  # unneeded schema
-                                print("info:", info)
 
                                 the_key = data_node.attrib.get("key")
 
@@ -1935,7 +1929,6 @@ class Graph:
                         if info is not None:
                             info = re.sub(r"<!\[CDATA\[", "", info)  # unneeded schema
                             info = re.sub(r"\]\]>", "", info)  # unneeded schema
-                            print("info:", info)
 
                             the_key = data_node.attrib.get("key")
 
@@ -1944,7 +1937,7 @@ class Graph:
                                 edge_init_dict[info_type] = info
 
                 # bendstyle_node = polylineedge.find("BendStyle")
-                # edge_init_dict["smoothed"] = linestyle_node.attrib.get("smoothed") # FIXME
+                # edge_init_dict["smoothed"] = linestyle_node.attrib.get("smoothed") # TODO: ADD THIS
 
                 # TODO:
                 #   CUSTOM PROPERTIES
@@ -2039,7 +2032,7 @@ def start_subprocess(command):
         # Start the subprocess
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         pid = process.pid
-        print(f"Started process with PID: {pid}")
+        # print(f"Started process with PID: {pid}")
         return process
     except Exception as e:
         print(f"Unexpected error: {e}", file=sys.stderr)
@@ -2119,6 +2112,5 @@ def xml_to_simple_string(file_path) -> str:
         graph_str = graph_str.replace("xml:", "")  # unneeded namespace prefix
         graph_str = graph_str.replace("yfiles.", "")  # unneeded namespace prefix
         graph_str = re.sub(" {1,}", " ", graph_str)  # reducing redundant spaces
-        # print(graph_str) # debug
 
     return graph_str
