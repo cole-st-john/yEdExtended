@@ -2,9 +2,11 @@
 
 
 # Extended Python Support for yEd 
+
+[![Static Badge](https://img.shields.io/badge/PyPI%20-%20yEdExtended%20-%20GREEN?logoColor=0%2C0%2C255&color=0%2C1%2C1&link=https%3A%2F%2Fpypi.org%2Fproject%2Fyedextended%2F)](https://pypi.org/project/yedextended/)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/yedextended?color=2334D058)
 [![CI](https://github.com/cole-st-john/yEdExtended/actions/workflows/ci.yml/badge.svg)](https://github.com/cole-st-john/yEdExtended/actions/workflows/ci.yml)
 ![Test Coverage](https://raw.githubusercontent.com/cole-st-john/yedextended/master/test_coverage.svg)
-![PyPI - Python Version](https://img.shields.io/pypi/pyversions/yedextended?color=2334D058)
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/w/cole-st-john/yedextended)
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/yedextended)
 
