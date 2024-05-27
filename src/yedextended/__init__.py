@@ -8,6 +8,8 @@ Currently supports...
 
 """
 
+from __future__ import annotations
+
 # import asyncio
 import io
 import os
@@ -16,16 +18,17 @@ import re
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
+from random import randint
 from shutil import which
 from time import sleep
 from tkinter import messagebox as msg
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from xml.dom import minidom
 
 import openpyxl as pyxl
 import psutil
 
-# import pygetwindow as gw
+# import pygetwindow as gw # potential future addition for window management
 
 # Enumerated parameters / Constants
 PROGRAM_NAME = "yEd.exe"
@@ -33,6 +36,7 @@ PROGRAM_NAME = "yEd.exe"
 # Testing related triggers
 testing = False
 local_testing = None
+show_guis = True
 
 LINE_TYPES = [
     "line",
@@ -89,7 +93,7 @@ def checkValue(
 
 
 class File:
-    """Object to check and act on yEd files / filepaths (or the excel files during bulk data management)."""
+    """Object to check and act on yEd files / filepaths (or excel files, .xlsx,  during bulk data management)."""
 
     def __init__(self, file_name_or_path=None):
         self.DEFAULT_FILE_NAME = "temp"
@@ -113,7 +117,7 @@ class File:
         return os.path.realpath(path)
 
     def base_name_validate(self, temp_name_or_path=None):
-        """Validate / Build valid file name with GraphML extension"""
+        """Validate / Build valid file name with GraphML extension (also works with excel files identified with xlsx)"""
         temp_name = ""
         if temp_name_or_path:
             temp_name = os.path.basename(temp_name_or_path)
@@ -344,13 +348,344 @@ class CustomPropertyDefinition:
         self.default_value = default_value
         self.id = "%s_%s" % (self.scope, self.name)
 
-    def convert_to_xml(self):
+    def convert_to_xml(self) -> ET.Element:
         custom_prop_key = ET.Element("key", id=self.id)
         custom_prop_key.set("for", self.scope)
         custom_prop_key.set("attr.name", self.name)
         custom_prop_key.set("attr.type", self.property_type)
 
         return custom_prop_key
+
+
+class Node:
+    """yEd Node object - representing a single node in the graph"""
+
+    custom_properties_defs = {}
+
+    VALID_NODE_SHAPES = [
+        "rectangle",
+        "rectangle3d",
+        "roundrectangle",
+        "diamond",
+        "ellipse",
+        "fatarrow",
+        "fatarrow2",
+        "hexagon",
+        "octagon",
+        "parallelogram",
+        "parallelogram2",
+        "star5",
+        "star6",
+        "star6",
+        "star8",
+        "trapezoid",
+        "trapezoid2",
+        "triangle",
+        "trapezoid2",
+        "triangle",
+    ]
+
+    def __init__(
+        self,
+        name: str = "",  # non-unique node name
+        label_alignment="center",
+        shape="rectangle",
+        font_family="Dialog",
+        underlined_text="false",
+        font_style="plain",
+        font_size="12",
+        shape_fill="#FFCC00",
+        transparent="false",
+        border_color="#000000",
+        border_type="line",
+        border_width="1.0",
+        height=False,
+        width=False,
+        x=False,
+        y=False,
+        node_type="ShapeNode",
+        UML: Union[bool, dict] = False,
+        custom_properties=None,
+        description="",
+        url="",
+    ):
+        self.name: str = name
+        self.id: str = generate_temp_uuid()  # temporary unique
+        self.parent: Union[(Group, Graph, None)] = None
+
+        self.list_of_labels: list[NodeLabel] = []  # initialize list of labels
+
+        self.add_label(
+            label_text=name,
+            alignment=label_alignment,
+            font_family=font_family,
+            underlined_text=underlined_text,
+            font_style=font_style,
+            font_size=font_size,
+        )
+
+        self.node_type = node_type
+        self.UML = UML
+
+        # node shape
+        checkValue("shape", shape, Node.VALID_NODE_SHAPES)
+        self.shape = shape
+
+        # shape fill
+        self.shape_fill = shape_fill
+        self.transparent = transparent
+
+        # border options
+        self.border_color = border_color
+        self.border_width = border_width
+
+        checkValue("border_type", border_type, LINE_TYPES)
+        self.border_type = border_type
+
+        # geometry
+        self.geom = {}
+        if height:
+            self.geom["height"] = height
+        if width:
+            self.geom["width"] = width
+        if x:
+            self.geom["x"] = x
+        if y:
+            self.geom["y"] = y
+
+        self.description = description
+        self.url = url
+
+        # Handle Node Custom Properties
+        for name, definition in Node.custom_properties_defs.items():
+            if custom_properties:
+                for k, v in custom_properties.items():
+                    if k not in Node.custom_properties_defs:
+                        raise RuntimeWarning("key %s not recognised" % k)
+                    if name == k:
+                        setattr(self, name, custom_properties[k])
+                        break
+                else:
+                    setattr(self, name, definition.default_value)
+            else:
+                setattr(self, name, definition.default_value)
+
+    def add_label(self, label_text, **kwargs) -> Node:
+        """Adds node label - > returns node for continued node operations"""
+        self.list_of_labels.append(NodeLabel(label_text, **kwargs))
+        return self
+
+    def convert_to_xml(self) -> ET.Element:
+        """Converting node object to xml object"""
+
+        xml_node = ET.Element("node", id=str(self.id))
+        data = ET.SubElement(xml_node, "data", key="data_node")
+        shape = ET.SubElement(data, "y:" + self.node_type)
+
+        if self.geom:
+            ET.SubElement(shape, "y:Geometry", **self.geom)
+        # <y:Geometry height="30.0" width="30.0" x="475.0" y="727.0"/>
+
+        ET.SubElement(shape, "y:Fill", color=self.shape_fill, transparent=self.transparent)
+
+        ET.SubElement(
+            shape,
+            "y:BorderStyle",
+            color=self.border_color,
+            type=self.border_type,
+            width=self.border_width,
+        )
+
+        for label in self.list_of_labels:
+            label.addSubElement(shape)
+
+        ET.SubElement(shape, "y:Shape", type=self.shape)
+
+        # UML specific
+        if self.UML:
+            UML = ET.SubElement(shape, "y:UML")
+
+            attributes = ET.SubElement(UML, "y:AttributeLabel", type=self.shape)
+            attributes.text = self.UML["attributes"]
+
+            methods = ET.SubElement(UML, "y:MethodLabel", type=self.shape)
+            methods.text = self.UML["methods"]
+
+            stereotype = self.UML["stereotype"] if "stereotype" in self.UML else ""
+            UML.set("stereotype", stereotype)
+
+        # Special items
+        if self.url:
+            url_node = ET.SubElement(xml_node, "data", key="url_node")
+            url_node.text = self.url
+
+        if self.description:
+            description_node = ET.SubElement(xml_node, "data", key="description_node")
+            description_node.text = self.description
+
+        # Node Custom Properties
+        for name, definition in Node.custom_properties_defs.items():
+            node_custom_prop = ET.SubElement(xml_node, "data", key=definition.id)
+            node_custom_prop.text = self.name
+
+        return xml_node
+
+    @classmethod
+    def set_custom_properties_defs(cls, custom_property) -> None:
+        cls.custom_properties_defs[custom_property.name] = custom_property
+
+
+class Edge:
+    """yEd Edge - connecting Nodes or Groups"""
+
+    custom_properties_defs = {}
+
+    ARROW_TYPES = [
+        "none",
+        "standard",
+        "white_delta",
+        "diamond",
+        "white_diamond",
+        "short",
+        "plain",
+        "concave",
+        "convex",
+        "circle",
+        "transparent_circle",
+        "dash",
+        "skewed_dash",
+        "t_shape",
+        "crows_foot_one_mandatory",
+        "crows_foot_many_mandatory",
+        "crows_foot_many_optional",
+        "crows_foot_one",
+        "crows_foot_many",
+        "crows_foot_optional",
+    ]
+
+    def __init__(
+        self,
+        node1: Node,
+        node2: Node,
+        name: str = "",
+        arrowhead="standard",
+        arrowfoot="none",
+        color="#000000",
+        line_type="line",
+        width="1.0",
+        label_background_color="",
+        label_border_color="",
+        source_label=None,
+        target_label=None,
+        custom_properties=None,
+        description="",
+        url="",
+    ):
+        # Primary operations
+        self.node1: Node = node1
+        self.node2: Node = node2
+        self.name: str = name
+        self.list_of_labels: list[EdgeLabel] = []  # initialize list of labels
+        self.id: str = generate_temp_uuid()  # give temp id
+        self.parent: Union[(Group, Graph, None)] = None
+
+        if name:
+            self.add_label(
+                name,
+                border_color=label_border_color,
+                background_color=label_background_color,
+            )
+
+        # if not node1 or not node2:
+        #     id = "%s_%s" % (node1, node2)
+
+        if source_label is not None:
+            self.add_label(
+                source_label,
+                model_name="six_pos",
+                model_position="shead",
+                preferred_placement="source_on_edge",
+                border_color=label_border_color,
+                background_color=label_background_color,
+            )
+
+        if target_label is not None:
+            self.add_label(
+                target_label,
+                model_name="six_pos",
+                model_position="shead",
+                preferred_placement="source_on_edge",
+                border_color=label_border_color,
+                background_color=label_background_color,
+            )
+
+        checkValue("arrowhead", arrowhead, Edge.ARROW_TYPES)
+        self.arrowhead = arrowhead
+
+        checkValue("arrowfoot", arrowfoot, Edge.ARROW_TYPES)
+        self.arrowfoot = arrowfoot
+
+        checkValue("line_type", line_type, LINE_TYPES)
+        self.line_type = line_type
+
+        self.color = color
+        self.width = width
+
+        self.description = description
+        self.url = url
+
+        # Handle Edge Custom Properties
+        for name, definition in Edge.custom_properties_defs.items():
+            if custom_properties:
+                for k, v in custom_properties.items():
+                    if k not in Edge.custom_properties_defs:
+                        raise RuntimeWarning("key %s not recognised" % k)
+                    if name == k:
+                        setattr(self, name, custom_properties[k])
+                        break
+                else:
+                    setattr(self, name, definition.default_value)
+            else:
+                setattr(self, name, definition.default_value)
+
+    def add_label(self, label_text, **kwargs):
+        """Adding edge label"""
+        self.list_of_labels.append(EdgeLabel(label_text, **kwargs))
+        # Enable method chaining
+        return self
+
+    def convert_to_xml(self) -> ET.Element:
+        """Converting edge object to xml object"""
+
+        edge = ET.Element("edge", id=str(self.id), source=str(self.node1.id), target=str(self.node2.id))
+
+        data = ET.SubElement(edge, "data", key="data_edge")
+        pl = ET.SubElement(data, "y:PolyLineEdge")
+
+        ET.SubElement(pl, "y:Arrows", source=self.arrowfoot, target=self.arrowhead)
+        ET.SubElement(pl, "y:LineStyle", color=self.color, type=self.line_type, width=self.width)
+
+        for label in self.list_of_labels:
+            label.addSubElement(pl)
+
+        if self.url:
+            url_edge = ET.SubElement(edge, "data", key="url_edge")
+            url_edge.text = self.url
+
+        if self.description:
+            description_edge = ET.SubElement(edge, "data", key="description_edge")
+            description_edge.text = self.description
+
+        # Edge Custom Properties
+        for name, definition in Edge.custom_properties_defs.items():
+            edge_custom_prop = ET.SubElement(edge, "data", key=definition.id)
+            edge_custom_prop.text = getattr(self, name)
+
+        return edge
+
+    @classmethod
+    def set_custom_properties_defs(cls, custom_property) -> None:
+        cls.custom_properties_defs[custom_property.name] = custom_property
 
 
 class Group:
@@ -381,9 +716,8 @@ class Group:
 
     def __init__(
         self,
-        group_id,
-        parent_graph,
-        label=None,
+        name: str = "",
+        top_level_graph=None,
         label_alignment="center",
         shape="rectangle",
         closed="false",
@@ -404,17 +738,17 @@ class Group:
         description="",
         url="",
     ):
-        self.label = label
-        if label is None:
-            self.label = group_id
+        self.name = name
+        self.parent: Union[(Group, Graph, None)] = None  # set during add_group
 
-        self.parent = None
-        self.group_id = group_id
-        self.nodes = {}
-        self.groups = {}
-        self.parent_graph = parent_graph
-        self.edges = {}
-        self.num_edges = 0
+        self.id = generate_temp_uuid()
+
+        self.nodes: dict[str, Node] = {}
+        self.groups: dict[str, Group] = {}
+        self.edges: dict[str, Edge] = {}
+        self.combined_objects = {}
+
+        self.top_level_graph = top_level_graph
 
         # node shape
         checkValue("shape", shape, Group.VALID_SHAPES)
@@ -469,97 +803,39 @@ class Group:
             else:
                 setattr(self, name, definition.default_value)
 
-    def add_node(self, node_name, **kwargs):
-        """Adding node within Group"""
-        if node_name in self.parent_graph.existing_entities:
-            raise RuntimeWarning("Node %s already exists" % node_name)
+    def add_node(self, node: Union[Node, str, None] = None, **kwargs) -> Node:
+        """Adding node within Group - accepts node object (simply assigns), or node name or none (to create new node without name)."""
+        return add_node(self, node, **kwargs)
 
-        node = Node(node_name, **kwargs)
-        node.parent = self
-        self.nodes[node_name] = node
-        self.parent_graph.existing_entities[node_name] = node
-        return node
+    def add_group(self, group: Union[Group, str, None] = None, **kwargs) -> Group:
+        """Adding group to Group - accepts group object (simply assigns), or group name or none (to create new group without name)"""
+        return add_group(self, group, **kwargs)
 
-    def add_group(self, group_id, **kwargs):
-        """Adding a group within current group object (and same parent graph)."""
-        if group_id in self.parent_graph.existing_entities:
-            raise RuntimeWarning("Group %s already exists" % group_id)
+    def add_edge(self, node1: Union[Group, Node, str], node2: Union[Group, Node, str], **kwargs) -> Edge:
+        """Adding edge to Group - uses node / group objects, or accepts names (creating new nodes under self)."""
+        return add_edge(self, node1, node2, **kwargs)
 
-        group = Group(group_id, self.parent_graph, **kwargs)
-        group.parent = self
-        self.groups[group_id] = group
-        self.parent_graph.existing_entities[group_id] = group
-        return group
+    # Removal of items ==============================
+    def remove_node(self, node: Union[Node, str]) -> None:
+        """Remove/Delete a node from group - by object or id."""
+        remove_node(self, node)
 
-    def add_edge(self, node1_id, node2_id, **kwargs):
-        """Adds edge - input: node names, not actual node objects"""
+    def remove_group(self, group: Union[Group, str]) -> None:
+        """Removes a group from within current group object (and same parent graph) - by object or id."""
+        remove_group(self, group)
 
-        node1 = self.parent_graph.existing_entities.get(node1_id) or self.add_node(node1_id)
+    def remove_edge(self, edge: Union[Edge, str]) -> None:
+        """Removing edge from group - by object or id."""
+        remove_edge(self, edge)
 
-        node2 = self.parent_graph.existing_entities.get(node2_id) or self.add_node(node2_id)
-
-        # http://graphml.graphdrawing.org/primer/graphml-primer.html#Nested
-        # The edges between two nodes in a nested graph have to be declared in a graph,
-        # which is an ancestor of both nodes in the hierarchy.
-
-        if not (self.is_ancestor(node1) and self.is_ancestor(node2)):
-            raise RuntimeWarning("Group %s is not ancestor of both %s and %s" % (self.group_id, node1_id, node2_id))
-
-        self.parent_graph.num_edges += 1
-        kwargs["edge_id"] = str(self.parent_graph.num_edges)
-        edge = Edge(node1_id, node2_id, **kwargs)
-        edge.parent = self
-        self.edges[edge.edge_id] = edge
-        return edge
-
-    def remove_node(self, node_name) -> None:
-        """Remove/Delete a node from a group"""
-        if node_name not in self.nodes:
-            raise RuntimeWarning("Node %s doesn't exist" % node_name)
-        del self.nodes[node_name]
-        del self.parent_graph.existing_entities[node_name]
-
-    def remove_group(self, group_id) -> None:
-        """Removes a group from within current group object (and same parent graph)."""
-        if group_id not in self.groups:
-            raise RuntimeWarning("Group %s doesn't exist" % group_id)
-        group = self.groups[group_id]
-
-        # reroute dependents
-        for node in group.nodes.values():
-            node.parent = self  # reassign parent: node side
-            self.nodes[node.node_name] = node  # reassign parent: group side
-
-        for edge in group.edges.values():
-            edge.parent = self  # reassign parent: edge side
-            self.edges[edge.edge_id] = edge  # reassign parent: group side
-
-        for group in group.groups.values():
-            # edge.parent = self  #reassign parent: edge side
-            group.parent = self
-            self.groups[group.group_id] = group  # reassign parent: group side
-
-        # remove records
-        del self.groups[group_id]
-        del self.parent_graph.existing_entities[group_id]
-
-    def remove_edge(self, edge_id):
-        """Removing edge from group  - uses node names not node objects."""
-        if not self.edges[edge_id]:
-            raise RuntimeWarning("Edge %s does not exist under group %s" % (edge_id, self.group_id))
-
-        del self.edges[edge_id]
-        # self.num_edges -= 1
-        self.parent_graph.num_edges -= 1
-
-    def is_ancestor(self, node):
+    def is_ancestor(self, node) -> bool:
         """Check for possible nesting conflict of this id usage"""
         return node.parent is not None and (node.parent is self or self.is_ancestor(node.parent))
 
-    def convert_to_xml(self):
+    def convert_to_xml(self) -> ET.Element:
         """Converting graph object to graphml xml object"""
 
-        node = ET.Element("node", id=self.group_id)
+        node = ET.Element("node", id=self.id)
         node.set("yfiles.foldertype", "group")
         data = ET.SubElement(node, "data", key="data_node")
 
@@ -592,13 +868,13 @@ class Group:
             fontStyle=self.font_style,
             alignment=self.label_alignment,
         )
-        label.text = self.label
+        label.text = self.name
 
         ET.SubElement(group_node, "y:Shape", type=self.shape)
 
         ET.SubElement(group_node, "y:State", closed=self.closed)
 
-        graph = ET.SubElement(node, "graph", edgedefault="directed", id=self.group_id)
+        graph = ET.SubElement(node, "graph", edgedefault="directed", id=self.id)
 
         if self.url:
             url_node = ET.SubElement(node, "data", key="url_node")
@@ -608,16 +884,17 @@ class Group:
             description_node = ET.SubElement(node, "data", key="description_node")
             description_node.text = self.description
 
-        for node_id in self.nodes:
-            n = self.nodes[node_id].convert_to_xml()
+        # Add group contained items (recursive)
+        for id in self.nodes:
+            n = self.nodes[id].convert_to_xml()
             graph.append(n)
 
-        for group_id in self.groups:
-            n = self.groups[group_id].convert_to_xml()
+        for id in self.groups:
+            n = self.groups[id].convert_to_xml()
             graph.append(n)
 
-        for edge_id in self.edges:
-            e = self.edges[edge_id].convert_to_xml()
+        for id in self.edges:
+            e = self.edges[id].convert_to_xml()
             graph.append(e)
 
         # Node Custom Properties
@@ -629,374 +906,63 @@ class Group:
         # ProxyAutoBoundsNode crap just draws bar at top of group
 
 
-class Node:
-    """yEd Node object"""
-
-    custom_properties_defs = {}
-
-    VALID_SHAPES = [
-        "rectangle",
-        "rectangle3d",
-        "roundrectangle",
-        "diamond",
-        "ellipse",
-        "fatarrow",
-        "fatarrow2",
-        "hexagon",
-        "octagon",
-        "parallelogram",
-        "parallelogram2",
-        "star5",
-        "star6",
-        "star6",
-        "star8",
-        "trapezoid",
-        "trapezoid2",
-        "triangle",
-        "trapezoid2",
-        "triangle",
-    ]
-
-    def __init__(
-        self,
-        node_name,
-        label=None,
-        label_alignment="center",
-        shape="rectangle",
-        font_family="Dialog",
-        underlined_text="false",
-        font_style="plain",
-        font_size="12",
-        shape_fill="#FFCC00",
-        transparent="false",
-        border_color="#000000",
-        border_type="line",
-        border_width="1.0",
-        height=False,
-        width=False,
-        x=False,
-        y=False,
-        node_type="ShapeNode",
-        UML=False,
-        custom_properties=None,
-        description="",
-        url="",
-    ):
-        self.list_of_labels = []  # initialize list of labels
-        if label:
-            self.add_label(
-                label,
-                alignment=label_alignment,
-                font_family=font_family,
-                underlined_text=underlined_text,
-                font_style=font_style,
-                font_size=font_size,
-            )
-        else:
-            self.add_label(
-                node_name,
-                alignment=label_alignment,
-                font_family=font_family,
-                underlined_text=underlined_text,
-                font_style=font_style,
-                font_size=font_size,
-            )
-
-        self.node_name = node_name
-
-        self.node_type = node_type
-        self.UML = UML
-
-        self.parent = None
-
-        # node shape
-        checkValue("shape", shape, Node.VALID_SHAPES)
-        self.shape = shape
-
-        # shape fill
-        self.shape_fill = shape_fill
-        self.transparent = transparent
-
-        # border options
-        self.border_color = border_color
-        self.border_width = border_width
-
-        checkValue("border_type", border_type, LINE_TYPES)
-        self.border_type = border_type
-
-        # geometry
-        self.geom = {}
-        if height:
-            self.geom["height"] = height
-        if width:
-            self.geom["width"] = width
-        if x:
-            self.geom["x"] = x
-        if y:
-            self.geom["y"] = y
-
-        self.description = description
-        self.url = url
-
-        # Handle Node Custom Properties
-        for name, definition in Node.custom_properties_defs.items():
-            if custom_properties:
-                for k, v in custom_properties.items():
-                    if k not in Node.custom_properties_defs:
-                        raise RuntimeWarning("key %s not recognised" % k)
-                    if name == k:
-                        setattr(self, name, custom_properties[k])
-                        break
-                else:
-                    setattr(self, name, definition.default_value)
-            else:
-                setattr(self, name, definition.default_value)
-
-    def add_label(self, label_text, **kwargs):
-        """Adding node label"""
-        self.list_of_labels.append(NodeLabel(label_text, **kwargs))
-        return self
-
-    def convert_to_xml(self):
-        """Converting node object to xml object"""
-
-        node = ET.Element("node", id=str(self.node_name))
-        data = ET.SubElement(node, "data", key="data_node")
-        shape = ET.SubElement(data, "y:" + self.node_type)
-
-        if self.geom:
-            ET.SubElement(shape, "y:Geometry", **self.geom)
-        # <y:Geometry height="30.0" width="30.0" x="475.0" y="727.0"/>
-
-        ET.SubElement(shape, "y:Fill", color=self.shape_fill, transparent=self.transparent)
-
-        ET.SubElement(
-            shape,
-            "y:BorderStyle",
-            color=self.border_color,
-            type=self.border_type,
-            width=self.border_width,
-        )
-
-        for label in self.list_of_labels:
-            label.addSubElement(shape)
-
-        ET.SubElement(shape, "y:Shape", type=self.shape)
-
-        if self.UML:
-            UML = ET.SubElement(shape, "y:UML")
-
-            attributes = ET.SubElement(UML, "y:AttributeLabel", type=self.shape)
-            attributes.text = self.UML["attributes"]
-
-            methods = ET.SubElement(UML, "y:MethodLabel", type=self.shape)
-            methods.text = self.UML["methods"]
-
-            stereotype = self.UML["stereotype"] if "stereotype" in self.UML else ""
-            UML.set("stereotype", stereotype)
-
-        if self.url:
-            url_node = ET.SubElement(node, "data", key="url_node")
-            url_node.text = self.url
-
-        if self.description:
-            description_node = ET.SubElement(node, "data", key="description_node")
-            description_node.text = self.description
-
-        # Node Custom Properties
-        for name, definition in Node.custom_properties_defs.items():
-            node_custom_prop = ET.SubElement(node, "data", key=definition.id)
-            node_custom_prop.text = getattr(self, name)
-
-        return node
-
-    @classmethod
-    def set_custom_properties_defs(cls, custom_property):
-        cls.custom_properties_defs[custom_property.name] = custom_property
-
-
-class Edge:
-    """yEd Edge - connecting Nodes or Groups"""
-
-    custom_properties_defs = {}
-
-    ARROW_TYPES = [
-        "none",
-        "standard",
-        "white_delta",
-        "diamond",
-        "white_diamond",
-        "short",
-        "plain",
-        "concave",
-        "convex",
-        "circle",
-        "transparent_circle",
-        "dash",
-        "skewed_dash",
-        "t_shape",
-        "crows_foot_one_mandatory",
-        "crows_foot_many_mandatory",
-        "crows_foot_many_optional",
-        "crows_foot_one",
-        "crows_foot_many",
-        "crows_foot_optional",
-    ]
-
-    def __init__(
-        self,
-        node1,
-        node2,
-        label=None,
-        arrowhead="standard",
-        arrowfoot="none",
-        color="#000000",
-        line_type="line",
-        width="1.0",
-        edge_id="",
-        label_background_color="",
-        label_border_color="",
-        source_label=None,
-        target_label=None,
-        custom_properties=None,
-        description="",
-        url="",
-    ):
-        self.node1 = node1
-        self.node2 = node2
-
-        self.list_of_labels = []  # initialize list of labels
-
-        if label:
-            self.add_label(
-                label,
-                border_color=label_border_color,
-                background_color=label_background_color,
-            )
-
-        if not edge_id:
-            edge_id = "%s_%s" % (node1, node2)
-
-        self.edge_id = str(edge_id)
-
-        if source_label is not None:
-            self.add_label(
-                source_label,
-                model_name="six_pos",
-                model_position="shead",
-                preferred_placement="source_on_edge",
-                border_color=label_border_color,
-                background_color=label_background_color,
-            )
-
-        if target_label is not None:
-            self.add_label(
-                source_label,
-                model_name="six_pos",
-                model_position="shead",
-                preferred_placement="source_on_edge",
-                border_color=label_border_color,
-                background_color=label_background_color,
-            )
-
-        checkValue("arrowhead", arrowhead, Edge.ARROW_TYPES)
-        self.arrowhead = arrowhead
-
-        checkValue("arrowfoot", arrowfoot, Edge.ARROW_TYPES)
-        self.arrowfoot = arrowfoot
-
-        checkValue("line_type", line_type, LINE_TYPES)
-        self.line_type = line_type
-
-        self.color = color
-        self.width = width
-
-        self.description = description
-        self.url = url
-
-        self.parent = None
-
-        # Handle Edge Custom Properties
-        for name, definition in Edge.custom_properties_defs.items():
-            if custom_properties:
-                for k, v in custom_properties.items():
-                    if k not in Edge.custom_properties_defs:
-                        raise RuntimeWarning("key %s not recognised" % k)
-                    if name == k:
-                        setattr(self, name, custom_properties[k])
-                        break
-                else:
-                    setattr(self, name, definition.default_value)
-            else:
-                setattr(self, name, definition.default_value)
-
-    def add_label(self, label_text, **kwargs):
-        """Adding edge label"""
-        self.list_of_labels.append(EdgeLabel(label_text, **kwargs))
-        # Enable method chaining
-        return self
-
-    def convert_to_xml(self):
-        """Converting edge object to xml object"""
-
-        edge = ET.Element("edge", id=str(self.edge_id), source=str(self.node1), target=str(self.node2))
-
-        data = ET.SubElement(edge, "data", key="data_edge")
-        pl = ET.SubElement(data, "y:PolyLineEdge")
-
-        ET.SubElement(pl, "y:Arrows", source=self.arrowfoot, target=self.arrowhead)
-        ET.SubElement(pl, "y:LineStyle", color=self.color, type=self.line_type, width=self.width)
-
-        for label in self.list_of_labels:
-            label.addSubElement(pl)
-
-        if self.url:
-            url_edge = ET.SubElement(edge, "data", key="url_edge")
-            url_edge.text = self.url
-
-        if self.description:
-            description_edge = ET.SubElement(edge, "data", key="description_edge")
-            description_edge.text = self.description
-
-        # Edge Custom Properties
-        for name, definition in Edge.custom_properties_defs.items():
-            edge_custom_prop = ET.SubElement(edge, "data", key=definition.id)
-            edge_custom_prop.text = getattr(self, name)
-
-        return edge
-
-    @classmethod
-    def set_custom_properties_defs(cls, custom_property):
-        cls.custom_properties_defs[custom_property.name] = custom_property
-
-
 class GraphStats:
     """Object to query and carry complete structure of current (recursive) graph objects and relationships."""
 
-    def __init__(self, graph_or_input_node):
-        self.all_nodes = dict()
-        self.all_groups = dict()
-        self.all_edges = dict()
-        self.recursive_id_extract(graph_or_input_node)
+    def __init__(self):
+        self.gather_metadata()  # initial extraction
 
-    def recursive_id_extract(self, graph_or_input_node):
+    def recursive_id_extract(self, graph_or_input_node) -> None:
         """Gather complete structure of current (recursive) graph objects and relationships."""
         sub_nodes = graph_or_input_node.nodes.values()
         sub_groups = graph_or_input_node.groups.values()
         sub_edges = graph_or_input_node.edges.values()
 
         for node in sub_nodes:
-            id = node.node_name
-            self.all_nodes[id] = node
-
-        for group in sub_groups:
-            id = group.group_id
-            self.all_groups[id] = group
-            self.recursive_id_extract(group)
+            self.all_nodes[node.id] = node
 
         for edge in sub_edges:
-            id = edge.edge_id
-            self.all_edges[id] = edge
+            self.all_edges[edge.id] = edge
+
+        for group in sub_groups:
+            self.all_groups[group.id] = group
+            self.recursive_id_extract(group)
+
+    def gather_metadata(self):
+        """Gather metadata for all objects in the graph."""
+
+        # Establish / clear data structures
+        self.all_nodes: dict[str, Node] = {}
+        self.all_groups: dict[str, Group] = {}
+        self.all_objects: dict[str, Union[Node, Group]] = {}
+        self.all_edges: dict[str, Edge] = {}
+        self.all_graph_items: dict[str, Union[Node, Group, Edge]] = {}
+        self.id_to_name: dict[str, str] = {}
+        self.name_to_ids: dict[str, list[str]] = {}
+
+        # (re)extract core graph data
+        self.recursive_id_extract(self)
+
+        # Combine remaining data
+        self.all_objects = {**self.all_nodes, **self.all_groups}
+        self.all_graph_items = {**self.all_objects, **self.all_edges}
+        for obj in self.all_graph_items.values():
+            self.id_to_name[obj.id] = obj.name
+            assert obj.name
+            assert obj.id
+            self.name_to_ids[obj.name] = self.name_to_ids.get(obj.name, []).append(obj.id)
+
+    def find_by_id(self, id) -> Union[Node, Group, Edge, None]:
+        """Find object by unique yEd id."""
+        return find_by_id(self, id)
+
+    def find_by_name(self, name) -> List[Union[Node, Group, Edge]]:
+        """Find object by user assigned name - needs to provide for multiple (needs deduplication)."""
+        return find_by_name(self, name)
+
+    def name_reused(self, name) -> bool:
+        """Find object by user assigned name - needs to provide for multiple (needs deduplication)."""
+        return len(self.name_to_ids.get(name, [])) > 1
 
 
 class ExcelManager:
@@ -1012,22 +978,22 @@ class ExcelManager:
         # Graph operations ================
         self.graph = Graph()
         self.original_stats = None
-        self.original_id_to_label = dict()
-        self.original_id_to_obj = dict()
+        self.original_id_to_label: dict[str, str] = dict()
+        self.original_id_to_obj: dict[str, Union[(Group, Edge, Node)]] = dict()
         self.obj_keys = list()
         self.obj_values = list()
         self.dup_objects = list()
 
-    def kill_excel(self):
+    def kill_excel(self) -> None:
         os.system('taskkill /f /im "excel.exe"')
 
-    def excel_type_verification(self, type):
+    def excel_type_verification(self, type) -> None:
         """Check if the given type is valid for Excel operations."""
         self.type = type or self.WB_TYPES[0]  # default
         if self.type not in self.WB_TYPES:
             raise RuntimeWarning("Invalid Excel type. Use: %s" % ", ".join(self.WB_TYPES))
 
-    def create_excel_template(self, type):
+    def create_excel_template(self, type) -> None:
         """Generate excel wb per template for that wb type."""
 
         self.excel_type_verification(type)
@@ -1086,12 +1052,6 @@ class ExcelManager:
                         with open(self.TEMP_EXCEL_SHEET, "rb") as f:
                             in_mem_file = io.BytesIO(f.read())
 
-                        # if not os.path.isfile(self.TEMP_EXCEL_SHEET):
-                        #     self.create_excel_template(type)
-                        #     sleep(1)
-                        # with open(self.TEMP_EXCEL_SHEET, "rb") as f:
-                        #     in_mem_file = io.BytesIO(f.read())
-
                 if not in_mem_file:
                     raise RuntimeWarning("No excel data found to open.")
                 self.excel_wb = pyxl.load_workbook(in_mem_file)
@@ -1123,34 +1083,28 @@ class ExcelManager:
             sub_groups = input_node.groups
 
             for node in sub_nodes.values():
-                id = node.node_name or ""
-                labels = getattr(node, "list_of_labels")
                 # desc = node.get(description, "")
                 # url = node.get(url, "")
-                if labels:
-                    label = labels[0]._text  # ASSUMPTION: that this would make sense for most graphs
-                else:
-                    label = ""
 
-                self.original_id_to_label[id] = label
-                self.original_id_to_obj[id] = node
+                self.original_id_to_label[node.id] = node.name
+                self.original_id_to_obj[node.id] = node
 
                 # posting to excel
-                self.objects_ws.cell(row=row, column=indent_level, value=label)
-                self.objects_ws.cell(row=row, column=indent_level + 1, value=id)
+                self.objects_ws.cell(row=row, column=indent_level, value=node.name)
+                self.objects_ws.cell(row=row, column=indent_level + 1, value=node.id)
                 row += 1
 
             for group in sub_groups.values():
-                id = group.group_id or ""
-                label = getattr(group, "label", "")
+                # id = group.id or ""
+                # label = getattr(group, "label", "")
 
                 # posting to excel
-                self.objects_ws.cell(row=row, column=indent_level, value=label)
-                self.objects_ws.cell(row=row, column=indent_level + 1, value=id)
+                self.objects_ws.cell(row=row, column=indent_level, value=group.name)
+                self.objects_ws.cell(row=row, column=indent_level + 1, value=group.id)
                 row += 1
 
-                self.original_id_to_label[id] = label
-                self.original_id_to_obj[id] = group
+                self.original_id_to_label[group.id] = group.name
+                self.original_id_to_obj[group.id] = group
 
                 # Recursive extraction - adapting indent
                 graph_object_extract_to_excel(self, group, indent_level=indent_level + 1)
@@ -1162,34 +1116,26 @@ class ExcelManager:
             sub_edges = input_node.edges
 
             for edge in sub_edges.values():
-                id = edge.edge_id or ""
-                node1 = getattr(edge, "node1")
-                node2 = getattr(edge, "node2")
-                labels = getattr(edge, "list_of_labels")
-                if labels:
-                    label = labels[0]._text  # ASSUMPTION: that this would make sense for most graphs
-                else:
-                    label = ""
 
-                def deduplicate_obj(id):
-                    name = self.original_id_to_label[id]
-                    if name in self.dup_objects:
-                        return id + "##" + name
+                def deduplicate_obj(obj):
+                    obj.name = self.original_id_to_label[obj.id]
+                    if obj.name in self.dup_objects:  # migrate to using graphstats
+                        return obj.name + "##ID:##" + obj.id  # FIXME: IN EXCEL_TO_GRAPH
                     else:
-                        return name
+                        return obj.name
 
-                node1name = deduplicate_obj(node1)
-                node2name = deduplicate_obj(node2)
+                node1name = deduplicate_obj(edge.node1)
+                node2name = deduplicate_obj(edge.node2)
 
                 group_name = ""
                 if isinstance(input_node, Group):
-                    group_name = deduplicate_obj(input_node.group_id)
+                    group_name = deduplicate_obj(input_node)
 
                 # post to excel
                 self.relations_ws.cell(row=row, column=col, value=node1name)
                 self.relations_ws.cell(row=row, column=col + 1, value=node2name)
-                self.relations_ws.cell(row=row, column=col + 2, value=label)
-                self.relations_ws.cell(row=row, column=col + 3, value=id)
+                self.relations_ws.cell(row=row, column=col + 2, value=edge.name)
+                self.relations_ws.cell(row=row, column=col + 3, value=edge.id)
                 self.relations_ws.cell(row=row, column=col + 4, value=group_name)
                 row += 1
 
@@ -1270,24 +1216,13 @@ class ExcelManager:
             all_bulk_mod_ids = set()
             all_curr_obj_ids = set(self.original_id_to_obj.keys())
             for i, (nr_indent, gr_i, obj_row) in enumerate(zip(indent, group_identifiers, obj_data)):
-                # possibilities:
-                #     completely new node / group
-                #     changed label - same node and structure
-                #     changed structuring - groups vs nodes
-                # changed structuring from node <-> group
-                #     changed owner
-                #     changed owning
-                #     there can be multiple groups at same level
-                #     negative - when in this mode - dont have ability to detect  / correct now problem relationships
-                # deleted nodes (id is no longer existing)
-
                 # Extracting label and id
-                label = obj_row[nr_indent]
+                name = obj_row[nr_indent]
                 id = None
                 try:
                     id = obj_row[nr_indent + 1]
                 except Exception as e:
-                    print(f"Node missing Id: {e}. Id will be assigned.")
+                    print(f"Node missing Id: {e}.")
                 else:
                     all_bulk_mod_ids.add(id)
 
@@ -1313,20 +1248,20 @@ class ExcelManager:
                 if not id_exists:
                     if is_group:
                         if is_group_owned:
-                            objects.append(owner_inst.add_group(group_id=id, label=label))
+                            objects.append(owner_inst.add_group(name))
                         else:
-                            objects.append(self.graph.add_group(group_id=id, label=label))
+                            objects.append(self.graph.add_group(name))
 
                     elif is_node:
                         if is_group_owned:
-                            objects.append(owner_inst.add_node(node_name=id, label=label))
+                            objects.append(owner_inst.add_node(name))
                         else:
-                            objects.append(self.graph.add_node(node_name=id, label=label))
+                            objects.append(self.graph.add_node(name))
 
                     else:
                         raise NotImplementedError("This state not implemented")
 
-                elif id_exists:
+                elif id_exists:  # TODO: NEED TO FINISH THIS
                     # changed name
                     existing_obj = self.original_id_to_obj[id]
 
@@ -1338,14 +1273,12 @@ class ExcelManager:
 
                     objects.append(existing_obj)
 
-                    pass
-
             # Deleted objects
             all_deleted_obj_ids = all_curr_obj_ids.difference(all_bulk_mod_ids)
             for obj_id in all_deleted_obj_ids:
                 obj: Group | Node = self.original_id_to_obj[obj_id]
                 parent = obj.parent or self.graph
-                if isinstance(obj, Group):  # group
+                if isinstance(obj, Group):  # group  #TODO:
                     # find all immediate dependents and connect them to owner
                     parent.remove_group(obj_id)
 
@@ -1363,42 +1296,47 @@ class ExcelManager:
             row_length = None
             edge_ids_after_mod = set()
 
-            count = 0
+            count: int = 0
             for row in relations_data:
                 if count == 0:
                     row_length = len(row)
                     count += 1
                     continue
-                node1_name = None
-                node2_name = None
-                edge_label = None
-                edge_id = None
+                node1_name: str = ""
+                node2_name: str = ""
+                edge_name: str = ""
+                edge_id: str = ""
 
+                # separating row values into variables
                 if row_length == 4:
-                    node1_name, node2_name, edge_label, edge_id = row
+                    node1_name, node2_name, edge_name, edge_id = row
+                    edge_id = str(edge_id)
                 elif row_length == 3:
-                    node1_name, node2_name, edge_label = row
+                    node1_name, node2_name, edge_name = row
                 elif row_length == 2:
                     node1_name, node2_name = row
 
-                edge_id = str(edge_id)
-
+                # Quick check if we are working with minimally complete data
                 two_node_id_check = node1_name is not None and node2_name is not None
                 if not two_node_id_check:
+                    raise RuntimeWarning("Node names not found...skipping line of Relations.")
                     continue
 
-                id_assigned = edge_id is not None
-                label_check = edge_label is not None
+                # Getting edge info - just helps with aligning with existing data for modification
+                label_check = edge_name is not None
+                edge_id_assigned = edge_id is not None
+                edge_id_found = False
+                if edge_id_assigned:
+                    edge_id_found = edge_id in self.original_stats.all_edges.keys()
 
-                id_exist = False
-                if id_assigned:
-                    id_exist = str(edge_id) in self.original_stats.all_edges.keys()
-
-                node1_found = node1_name in self.obj_values
-                node1_dedup_req = node1_name in self.dup_objects
-                if node1_found and not node1_dedup_req:
-                    node1_id = self.obj_keys[self.obj_values.index(node1_name)]
-                # TODO: ADD LOGIC FOR node1_found and node1_dedup_req
+                # Identify nodes - existing or new - and possible deduplication
+                node1_dedup_req = "##ID:##" in node1_name  # and in self.dup_objects
+                if node1_dedup_req:
+                    node1_name = node1_name.split("##ID:##")[0]
+                    node1_id = node1_name.split("##ID:##")[1]
+                    node1_found = node1_id in self.obj_keys
+                    if node1_found:
+                        node1_id = self.obj_values[self.obj_keys.index(node1_id)]
 
                 node2_found = node2_name in self.obj_values
                 node2_dedup_req = node2_name in self.dup_objects
@@ -1411,12 +1349,12 @@ class ExcelManager:
                     nodes_found = True
 
                 # modify
-                if id_exist and nodes_found:
+                if edge_id_found and nodes_found:
                     # make changes - but only if nodes are found
                     edge = self.original_stats.all_edges[edge_id]
                     edge.node1_id = node1_id
                     edge.node2_id = node2_id
-                    edge.label = edge_label
+                    edge.label = edge_name
 
                     # keep track of edges that were existing and still existing
                     edge_ids_after_mod.add(edge.edge_id)
@@ -1431,7 +1369,7 @@ class ExcelManager:
                     edge_init_dict = dict()
                     edge_init_dict["node1_id"] = node1_id
                     edge_init_dict["node2_id"] = node2_id
-                    edge_init_dict["label"] = edge_label
+                    edge_init_dict["label"] = edge_name
                     edge_init_dict = {key: value for (key, value) in edge_init_dict.items() if value is not None}
                     self.graph.add_edge(**edge_init_dict)
 
@@ -1454,7 +1392,7 @@ class ExcelManager:
         # kill excel process
         self.kill_excel()
 
-        if not testing:
+        if show_guis:
             os.startfile(self.TEMP_EXCEL_SHEET)
 
             user_response = msg.askokcancel(
@@ -1463,7 +1401,7 @@ class ExcelManager:
 
             if not user_response:
                 print("User cancelled operation.")
-                exit()
+                sys.exit()
 
     def bulk_data_management(self, type=None, graph=None, excel_data=None):
         """Process of converting to excel for manual operations, allows user to modify and then convert back to graph."""
@@ -1477,55 +1415,31 @@ class ExcelManager:
 class Graph:
     """Graph structure - carries yEd graph information"""
 
-    def __init__(self, directed="directed", graph_id="G"):
-        self.nodes = {}
-        self.edges = {}
-        self.num_edges = 0
-
+    def __init__(self, directed="directed", id="G"):
         self.directed = directed
-        self.graph_id = graph_id
-        self.existing_entities = dict()
+        self.id = id
 
-        self.groups = {}
+        self.nodes: dict[str, Node] = {}
+        self.groups: dict[str, Group] = {}
+        self.edges: dict[str, Edge] = {}
+        self.combined_objects: dict[str, Union[(Node, Group)]] = {}
 
         self.custom_properties = []
 
         self.graphml: ET.Element
 
     # Addition of items ============================
-    def add_node(self, node_name, **kwargs):
-        """Adding defined node to graph"""
-        if node_name in self.existing_entities:
-            raise RuntimeWarning("Node %s already exists" % node_name)
+    def add_node(self, node: Union[Node, str, None] = None, **kwargs) -> Node:
+        """Adding node within Graph - accepts node object (simply assigns), or node name or none (to create new node)."""
+        return add_node(self, node, **kwargs)
 
-        node = Node(node_name, **kwargs)
-        self.nodes[node_name] = node
-        self.existing_entities[node_name] = node
-        return node
+    def add_group(self, group: Union[Group, str, None] = None, **kwargs) -> Group:
+        """Adding group to Graph"""
+        return add_group(self, group, **kwargs)
 
-    def add_edge(self, node1_id, node2_id, **kwargs):
-        """Adding edge to graph - uses node names not node objects."""
-
-        # Ensuring nodes are existing at time of edge creation (error avoidance) - dont need assignments
-        node1 = self.existing_entities.get(node1_id) or self.add_node(node1_id)
-        node2 = self.existing_entities.get(node2_id) or self.add_node(node2_id)
-
-        self.num_edges += 1
-        kwargs["edge_id"] = str(self.num_edges)
-        edge = Edge(node1_id, node2_id, **kwargs)
-        self.edges[edge.edge_id] = edge
-        edge.parent = self
-        return edge
-
-    def add_group(self, group_id, **kwargs):
-        """Adding group to graph"""
-        if group_id in self.existing_entities:
-            raise RuntimeWarning("Group %s already exists" % group_id)
-
-        group = Group(group_id, self, **kwargs)
-        self.groups[group_id] = group
-        self.existing_entities[group_id] = group
-        return group
+    def add_edge(self, node1: Union[Group, Node, str], node2: Union[Group, Node, str], **kwargs) -> Edge:
+        """Adding edge to Graph - uses node / group objects or accepts names (creating new nodes under self)."""
+        return add_edge(self, node1, node2, **kwargs)
 
     def define_custom_property(self, scope, name, property_type, default_value):
         """Adding custom properties to graph (which makes them available on the contained objects in yEd)"""
@@ -1543,46 +1457,22 @@ class Graph:
             Edge.set_custom_properties_defs(custom_property)
 
     # Removal of items ==============================
-    def remove_node(self, node_name) -> None:
+    def remove_node(self, node: Union[Node, str]) -> None:
         """Remove/Delete a node from graph"""
-        if node_name not in self.existing_entities:
-            raise RuntimeWarning("Node %s doesn't exist" % node_name)
-        del self.nodes[node_name]
-        del self.existing_entities[node_name]
+        remove_node(self, node)
 
-    def remove_group(self, group_id):
-        """Removes a group from within current group object (and same parent graph)."""
-        if group_id not in self.existing_entities:
-            raise RuntimeWarning("Group %s doesn't exist" % group_id)
+    def remove_group(self, group: Union[Group, str]) -> None:
+        """Removes a group from within current graph object (and same parent graph)."""
+        remove_group(self, group)
 
-        # reroute dependents
-        for node in self.nodes.values():
-            node.parent = self  # reassign parent: node side
-            self.nodes[node.node_name] = node  # reassign parent: group side
-
-        for edge in self.edges.values():
-            edge.parent = self  # reassign parent: edge side
-            self.edges[edge.edge_id] = edge  # reassign parent: group/graph side
-
-        for group in self.groups.values():
-            group.parent = self
-            self.groups[group.group_id] = group  # reassign parent: group side
-
-        # eliminate records
-        del self.groups[group_id]
-        del self.existing_entities[group_id]
-
-    def remove_edge(self, edge_id):
-        """Removing edge from graph - uses node names not node objects."""
-        if edge_id not in self.edges:
-            raise RuntimeWarning("Edge %s does not exist under graph" % (edge_id))
-        del self.edges[edge_id]
-        self.num_edges -= 1
+    def remove_edge(self, edge: Union[Edge, str]) -> None:
+        """Removing edge from graph - uses id."""
+        remove_edge(self, edge)
 
     # TODO: ADD FUNCTIONALITY TO REMOVE / MODIFY CUSTOM PROPERTIES
 
     # Graph functionalities ===========================
-    def construct_graphml(self):
+    def construct_graphml(self) -> None:
         """Creating template graphml xml structure and then placing all graph items into it."""
 
         # Creating XML structure in Graphml format
@@ -1638,7 +1528,7 @@ class Graph:
         edge_key.set("yfiles.type", "edgegraphics")
 
         # Graph node containing actual objects
-        graph = ET.SubElement(graphml, "graph", edgedefault=self.directed, id=self.graph_id)
+        graph = ET.SubElement(graphml, "graph", edgedefault=self.directed, id=self.id)
 
         # Convert python graph objects into xml structure
         for node in self.nodes.values():
@@ -1678,7 +1568,7 @@ class Graph:
         print("persisting graph to file:", graph_file.fullpath)
         return graph_file
 
-    def stringify_graph(self):
+    def stringify_graph(self) -> str:
         """Returns Stringified version of graph in graphml format"""
         self.construct_graphml()
         # Py2/3 sigh.
@@ -1689,6 +1579,8 @@ class Graph:
 
     def from_existing_graph(self, file: str | File):
         """Parse GraphML xml of existing/stored graph file into python Graph structure."""
+
+        id_existing_to_graph_obj = dict()
 
         # Manage file input ==============================
         if isinstance(file, File):
@@ -1724,7 +1616,7 @@ class Graph:
         graph_id = graph_root.get("id")
 
         # instantiate graph object
-        new_graph = Graph(directed=graph_dir, graph_id=graph_id)
+        new_graph = Graph(directed=graph_dir, id=graph_id)
 
         # Parse graph
 
@@ -1742,7 +1634,7 @@ class Graph:
                     node_init_dict = dict()
 
                     # <node id="n1">
-                    node_init_dict["node_name"] = node.attrib.get("id", None)
+                    existing_node_id = node.attrib.get("id", None)  # FIXME:
 
                     data_nodes = node.findall("data")
                     info_node = None
@@ -1753,7 +1645,7 @@ class Graph:
 
                             node_label = info_node.find("NodeLabel")
                             if node_label is not None:
-                                node_init_dict["label"] = node_label.text
+                                node_init_dict["name"] = node_label.text
 
                                 # TODO: PORT REST OF NODELABEL
 
@@ -1793,7 +1685,8 @@ class Graph:
                     # Removing empty items
                     node_init_dict = {key: value for (key, value) in node_init_dict.items() if value is not None}
                     # create node
-                    parent.add_node(**node_init_dict)
+                    new_node = parent.add_node(**node_init_dict)
+                    id_existing_to_graph_obj[existing_node_id] = new_node
 
                 # group nodes
                 # <node id="n2" yfiles.foldertype="group">
@@ -1801,7 +1694,7 @@ class Graph:
                     group_init_dict = dict()
 
                     # <node id="n1">
-                    group_init_dict["group_id"] = node.attrib.get("id", None)
+                    existing_group_id = node.attrib.get("id", None)
 
                     # Actual Group Data ===================================
                     data_nodes = node.findall("data")
@@ -1833,7 +1726,9 @@ class Graph:
 
                                 nodelabel_node = group_node.find("NodeLabel")
                                 if nodelabel_node is not None:
-                                    group_init_dict["label"] = nodelabel_node.text
+                                    group_init_dict["name"] = (
+                                        nodelabel_node.text
+                                    )  # TODO: SHOULD THIS JUST BE THE FIRST ONE?  IN OTHER WORDS - IS THERE MULTIPLE THINGS TO BE CAUGHT HERE?
                                     group_init_dict["font_family"] = nodelabel_node.attrib.get("fontFamily", None)
                                     group_init_dict["font_size"] = nodelabel_node.attrib.get("fontSize", None)
                                     group_init_dict["underlined_text"] = nodelabel_node.attrib.get(
@@ -1875,6 +1770,7 @@ class Graph:
 
                     # Creating new group
                     new_group = parent.add_group(**group_init_dict)
+                    id_existing_to_graph_obj[existing_group_id] = new_group
 
                     # Recursive processing
                     if sub_graph_node is not None:
@@ -1889,9 +1785,17 @@ class Graph:
                 edge_init_dict = dict()
 
                 # <node id="n1">
-                edge_init_dict["edge_id"] = edge_node.attrib.get("id", None)
-                edge_init_dict["node1_id"] = edge_node.attrib.get("source", None)
-                edge_init_dict["node2_id"] = edge_node.attrib.get("target", None)
+                edge_id = edge_node.attrib.get("id", None)
+                node1_id = edge_node.attrib.get("source", None)
+                node2_id = edge_node.attrib.get("target", None)
+
+                try:
+                    edge_init_dict["node1"] = id_existing_to_graph_obj.get(node1_id)
+                    edge_init_dict["node2"] = id_existing_to_graph_obj.get(node2_id)
+                except Exception as e:  # TODO: MAKE MORE SPECIFIC
+                    print(f"One of nodes of existing edge {edge_id} not found: {node1_id}, {node2_id} ")
+
+                # FIXME: HOW TO MOVE FROM NODE IDS TO NODE OBJECTS - MOVE THROUGH GRAPHML FOR THE TEXT OF THAT OBJECT? - OR USE A DICTIONARY
 
                 # <data key="d5">
                 data_nodes = edge_node.findall("data")
@@ -1958,27 +1862,27 @@ class Graph:
         """Creating current Graph Stats for the current graph"""
         return GraphStats(self)
 
-    def run_graph_rules(self, correct=None):
-        """Check a few graph items that are most likely to fail following manual data management."""
+    def run_graph_rules(self, correct: Optional[str] = None) -> None:
+        """Check a few graph items that are most likely to fail following manual data management.  Correct them automatically or manually."""
         if correct is None:  #  ("auto", "manual")
             correct = "auto"
 
         stats = self.gather_graph_stats()
 
-        def stranded_edges_check(self, graph_stats, correct):
+        def stranded_edges_check(self, graph_stats: GraphStats, correct: str) -> set[Edge]:
             """Check for edges with no longer valid nodes (these will prevent yEd from opening the file).  Correct them automatically or manually."""
             stranded_edges = set()
             for edge_id, edge in graph_stats.all_edges.items():
                 node1_exist = edge.node1 in graph_stats.all_nodes.keys() or edge.node1 in graph_stats.all_groups.keys()
                 node2_exist = edge.node2 in graph_stats.all_nodes.keys() or edge.node2 in graph_stats.all_groups.keys()
-                stranded_edge = not node1_exist or not node2_exist
-                at_least_one_edge = node1_exist or node2_exist
+                at_least_one_edge = any([node1_exist, node2_exist])
+                stranded_edge = not all([node1_exist, node2_exist])
                 if stranded_edge:
                     stranded_edges.add(edge)
 
             if correct == "auto":
                 for edge in stranded_edges:
-                    edge.parent.remove_edge(edge.edge_id)
+                    edge.parent.remove_edge(edge.id)  # Any further postprocessing needed?
 
             elif correct == "manual":
                 # Excel - run relations and highlight edges with issues?
@@ -2045,11 +1949,12 @@ def open_yed_file(file: File, force=False):
         return None
 
     if force:
-        print("Act on yEd message box...")
-        answer = msg.askokcancel(title="Force yEd App Close", message="Are you ok to force yEd closure?")
-        if not answer:
-            print("Exiting program")
-            exit()
+        if show_guis:
+            print("Act on yEd message box...")
+            answer = msg.askokcancel(title="Force yEd App Close", message="Are you ok to force yEd closure?")
+            if not answer:
+                print("Exiting program")
+                exit()
 
         kill_yed()
 
@@ -2114,3 +2019,209 @@ def xml_to_simple_string(file_path) -> str:
         graph_str = re.sub(" {1,}", " ", graph_str)  # reducing redundant spaces
 
     return graph_str
+
+
+def generate_temp_uuid() -> str:
+    """Temporary unique id for objects."""
+    return str(randint(1, 1000000))
+
+
+def assign_traceable_id(obj) -> None:
+    """Creating unique traceable id for graph objects in similar format to yEd:
+    n0, n1, ... for nodes and groups at a level
+    e0, e1, ... for edges at a level
+    n2::n2::n0 for nodes and groups at following level - full tracability
+    n2::e0 for edges at following level - full tracability (lowest level ownership where linked)
+    """
+    parent_id_prefix = ""
+    if isinstance(obj.parent, Group):
+        parent_id_prefix = obj.parent.id + "::"
+
+    if isinstance(obj, Node) or isinstance(obj, Group):
+        obj.id = (
+            parent_id_prefix + "n" + str(len(obj.parent.combined_objects))
+        )  # FIXME: HAS TO BE THE INDEX OF THIS ITEM IN THE LIST
+    elif isinstance(obj, Edge):
+        obj.id = (
+            parent_id_prefix + "e" + str(len(obj.parent.edges))
+        )  # FIXME: HAS TO BE THE INDEX OF THIS ITEM IN THE LIST
+
+
+def update_traceability(obj, owner, operation) -> None:
+    """Updating ownership of object based on parent."""
+
+    if operation == "add":
+        # Setting parent
+        obj.parent = owner
+        if isinstance(obj.parent, Group):
+            obj.top_level_graph = obj.parent.top_level_graph
+        else:
+            obj.top_level_graph = obj.parent
+
+        assign_traceable_id(obj)
+
+        if isinstance(obj, Node):
+            obj.parent.nodes[obj.id] = obj
+            obj.parent.combined_objects[obj.id] = obj
+        elif isinstance(obj, Group):
+            obj.parent.groups[obj.id] = obj
+            obj.parent.combined_objects[obj.id] = obj
+        elif isinstance(obj, Edge):
+            obj.parent.edges[obj.id] = obj
+
+    if operation == "remove":
+        if isinstance(obj, Node):
+            del obj.parent.nodes[obj.id]
+            del obj.parent.combined_objects[obj.id]
+
+        elif isinstance(obj, Group):
+            # reroute dependents ===================
+            for node in obj.nodes.values():
+                node.parent = obj.parent  # reassign parent: node side
+                obj.parent.nodes[node.id] = node  # reassign parent: group side
+
+            for edge in obj.edges.values():
+                edge.parent = obj.parent  # reassign parent: edge side
+                obj.parent.edges[edge.id] = edge  # reassign parent: group/graph side
+
+            for group in obj.groups.values():
+                group.parent = obj.parent
+                obj.parent.groups[group.id] = group  # reassign parent: group side
+
+            del obj.parent.groups[obj.id]
+            del obj.parent.combined_objects[obj.id]
+
+        elif isinstance(obj, Edge):
+            del obj.parent.edges[obj.id]
+
+
+# Reused graph functionality ============================
+def add_node(owner, node, **kwargs) -> Node:
+    """Adding node within Graph - accepts node object (simply assigns), or node name or none (to create new node)."""
+    if isinstance(node, Node):
+        # just update traceability - ownership
+        pass
+    if isinstance(node, str) or node is None:
+        if node:
+            kwargs["name"] = node
+        node = Node(**kwargs)
+    update_traceability(obj=node, owner=owner, operation="add")
+    return node
+
+
+def add_edge(owner, node1, node2, **kwargs) -> Edge:
+    """Adding edge to graph -
+    if names provided - creates nodes under the owner,
+    otherwise, expects node / group objects at or under this owner level."""
+
+    # Creating nodes if necessary from names - under owner
+    if isinstance(node1, str):
+        node1 = owner.add_node(node1)
+
+    if isinstance(node2, str):
+        node2 = owner.add_node(node2)
+
+    # If not valid object, like None, should error out
+    if not isinstance(node1, (Node, Group)):
+        raise RuntimeWarning(f"Object {node1} doesn't exist")
+
+    if not isinstance(node2, (Node, Group)):
+        raise RuntimeWarning(f"Object {node2} doesn't exist")
+
+    # http://graphml.graphdrawing.org/primer/graphml-primer.html#Nested
+    # The edges between two nodes in a nested graph have to be declared in a graph,
+    # which is an ancestor of both nodes in the hierarchy.
+
+    if isinstance(owner, Group):
+        if not (owner.is_ancestor(node1) and owner.is_ancestor(node2)):
+            raise RuntimeWarning("Group %s is not ancestor of both %s and %s" % (owner.id, node1.id, node2.id))
+
+    # Using only kwargs simplifies from_existing_graph
+    kwargs["node1"] = node1
+    kwargs["node2"] = node2
+
+    edge = Edge(**kwargs)
+
+    update_traceability(obj=edge, owner=owner, operation="add")
+
+    return edge
+
+
+def add_group(owner, group, **kwargs) -> Group:
+    """Adding group to graph"""
+    if isinstance(group, Group):
+        # just needs update to traceability - ownership
+        pass
+    if isinstance(group, str) or group is None:
+        # if isinstance(owner, Group):
+        #     top_level_graph = owner.top_level_graph
+        # else:
+        #     top_level_graph = owner
+        if group:
+            kwargs["name"] = group
+        group = Group(**kwargs)
+    update_traceability(obj=group, owner=owner, operation="add")
+    return group
+
+
+def remove_node(owner, node) -> None:
+    """Remove/Delete a node - accepts node or node id"""
+    if isinstance(node, Node):
+        if node not in owner.nodes.values():
+            raise RuntimeWarning(f"Node {node.id} doesn't exist")
+    if isinstance(node, str):
+        if node not in owner.nodes:
+            raise RuntimeWarning(f"Node {node} doesn't exist")
+        node = owner.nodes[node]
+    update_traceability(obj=node, owner=owner, operation="remove")
+
+
+def remove_group(owner, group) -> None:
+    """Removes a group from within current object."""
+    if isinstance(group, Group):
+        if group not in owner.groups.values():
+            raise RuntimeWarning(f"Group {group.id} doesn't exist")
+    if isinstance(group, str):
+        if group not in owner.groups:
+            raise RuntimeWarning(f"Group {group} doesn't exist")
+        group = owner.groups[group]
+
+    update_traceability(obj=group, owner=owner, operation="remove")
+
+
+def remove_edge(owner, edge) -> None:
+    """Removing edge - uses id."""
+    if isinstance(edge, Edge):
+        if edge not in owner.edges.values():
+            raise RuntimeWarning(f"Edge {edge.id} doesn't exist")
+    if isinstance(edge, str):
+        if edge not in owner.edges:
+            raise RuntimeWarning(f"Edge {edge} doesn't exist")
+        edge = owner.edges[edge]
+    update_traceability(obj=edge, owner=owner, operation="remove")
+
+
+def find_by_id(owner: GraphStats, id) -> Union[Node, Group, Edge, None]:
+    """Find object by unique yEd id."""
+    if id in owner.all_nodes:
+        return owner.all_nodes[id]
+    if id in owner.all_groups:
+        return owner.all_groups[id]
+    if id in owner.all_edges:
+        return owner.all_edges[id]
+    return None
+
+
+def find_by_name(owner: GraphStats, name) -> List[Union[Node, Group, Edge]]:
+    """Find object by user assigned name - needs to provide for multiple (needs deduplication)."""
+    objects = []
+    for id, node in owner.all_nodes.items():
+        if node.name == name:
+            objects.append(node)
+    for id, group in owner.all_groups.items():
+        if group.name == name:
+            objects.append(group)
+    for id, edge in owner.all_edges.items():
+        if edge.name == name:
+            objects.append(edge)
+    return objects
