@@ -1,6 +1,7 @@
 # imports
-import yedextended as yed
 import csv
+
+import yedextended as yed
 
 # Instantiate graph instance
 graph1 = yed.Graph()
