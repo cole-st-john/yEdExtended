@@ -772,10 +772,22 @@ def test_bulk_data_management():
 
 # @pytest.mark.skip(reason="Requires refactor of name vs id handling.")
 def test_excel_to_graph():  # FIXME:
-    graph1 = Graph().from_existing_graph("examples\\yed_created_edges.graphml")
+    # Create Graph
+    graph1 = yed.Graph()
+    n2 = graph1.add_node("Ivrea")
+    n1 = graph1.add_node("Turin")
+    group1 = graph1.add_group("Northern Italy")
+    n3 = group1.add_node("Savona")
+    n4 = group1.add_node("Brescia")
+    graph1.add_edge(n1, n4)
+    graph1.add_edge(n1, n2)
+    graph1.add_edge(n1, n3)
+
     # test conversion to excel
     excel1 = ExcelManager()
-    data = "examples\\yed_test_to_excel2.xlsx"
+    data = "examples\\yed_test_to_excel3.xlsx"
     excel1.excel_to_graph_conversion(type="obj_and_hierarchy", excel_data=data)
     excel1.excel_to_graph_conversion(type="relations", excel_data=data)
-    assert graph1.stringify_graph() == excel1.graph.stringify_graph()
+    reference_string = graph1.stringify_graph()
+    return_string = excel1.graph.stringify_graph()
+    assert reference_string == return_string

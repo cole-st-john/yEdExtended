@@ -23,6 +23,7 @@ from shutil import which
 from time import sleep
 from tkinter import messagebox as msg
 from typing import Any, Dict, List, Optional, Union
+from warnings import warn
 from xml.dom import minidom
 
 import openpyxl as pyxl
@@ -526,7 +527,7 @@ class Node:
         # Node Custom Properties
         for name, definition in Node.custom_properties_defs.items():
             node_custom_prop = ET.SubElement(xml_node, "data", key=definition.id)
-            node_custom_prop.text = self.name
+            node_custom_prop.text = getattr(self, name)
 
         return xml_node
 
@@ -740,7 +741,6 @@ class Group:
     ):
         self.name = name
         self.parent: Union[(Group, Graph, None)] = None  # set during add_group
-
         self.id = generate_temp_uuid()
 
         self.nodes: dict[str, Node] = {}
@@ -811,18 +811,30 @@ class Group:
         """Adding group to Group - accepts group object (simply assigns), or group name or none (to create new group without name)"""
         return add_group(self, group, **kwargs)
 
-    def add_edge(self, node1: Union[Group, Node, str], node2: Union[Group, Node, str], **kwargs) -> Edge:
-        """Adding edge to Group - uses node / group objects, or accepts names (creating new nodes under self)."""
-        return add_edge(self, node1, node2, **kwargs)
+    def add_edge(
+        self,  # owner
+        node1: Optional[Union[(Node, Group, str)]] = None,
+        node2: Optional[Union[(Node, Group, str)]] = None,
+        **kwargs,
+    ) -> Edge:
+        """Adding edge to Group - for node1/node2 uses node / group objects or accepts names (creating new nodes under self) - or function can alternatively accept an instantiated Edge object."""
+
+        # map args into kwargs in case of excel data management ops
+        if node1:
+            kwargs["node1"] = node1
+        if node2:
+            kwargs["node2"] = node2
+
+        return add_edge(self, **kwargs)
 
     # Removal of items ==============================
     def remove_node(self, node: Union[Node, str]) -> None:
         """Remove/Delete a node from group - by object or id."""
         remove_node(self, node)
 
-    def remove_group(self, group: Union[Group, str]) -> None:
+    def remove_group(self, group: Union[Group, str], **kwargs) -> None:
         """Removes a group from within current group object (and same parent graph) - by object or id."""
-        remove_group(self, group)
+        remove_group(self, group, **kwargs)
 
     def remove_edge(self, edge: Union[Edge, str]) -> None:
         """Removing edge from group - by object or id."""
@@ -909,7 +921,8 @@ class Group:
 class GraphStats:
     """Object to query and carry complete structure of current (recursive) graph objects and relationships."""
 
-    def __init__(self):
+    def __init__(self, graph: Graph):
+        self.graph = graph
         self.gather_metadata()  # initial extraction
 
     def recursive_id_extract(self, graph_or_input_node) -> None:
@@ -939,30 +952,33 @@ class GraphStats:
         self.all_graph_items: dict[str, Union[Node, Group, Edge]] = {}
         self.id_to_name: dict[str, str] = {}
         self.name_to_ids: dict[str, list[str]] = {}
+        self.duplicate_names: set[str] = set()
 
         # (re)extract core graph data
-        self.recursive_id_extract(self)
+        self.recursive_id_extract(self.graph)
 
-        # Combine remaining data
+        # Combine remaining data ========================
         self.all_objects = {**self.all_nodes, **self.all_groups}
         self.all_graph_items = {**self.all_objects, **self.all_edges}
         for obj in self.all_graph_items.values():
             self.id_to_name[obj.id] = obj.name
-            assert obj.name
-            assert obj.id
-            self.name_to_ids[obj.name] = self.name_to_ids.get(obj.name, []).append(obj.id)
+            current_ids = self.name_to_ids.get(obj.name, [])
+            if current_ids:
+                self.duplicate_names.add(obj.name)
+            current_ids.append(obj.id)
+            self.name_to_ids[obj.name] = current_ids
 
     def find_by_id(self, id) -> Union[Node, Group, Edge, None]:
         """Find object by unique yEd id."""
-        return find_by_id(self, id)
+        return self.all_graph_items.get(id, None)
 
     def find_by_name(self, name) -> List[Union[Node, Group, Edge]]:
         """Find object by user assigned name - needs to provide for multiple (needs deduplication)."""
-        return find_by_name(self, name)
+        return [self.all_graph_items[id] for id in self.name_to_ids.get(name, [])]
 
-    def name_reused(self, name) -> bool:
+    def name_reused(self, name: str) -> bool:
         """Find object by user assigned name - needs to provide for multiple (needs deduplication)."""
-        return len(self.name_to_ids.get(name, [])) > 1
+        return name in self.duplicate_names
 
 
 class ExcelManager:
@@ -974,21 +990,23 @@ class ExcelManager:
         self.TEMP_EXCEL_SHEET = File("yedextended_temp.xlsx").fullpath
         self.OBJECTS_WS_NAME = "Objects_and_Groups"
         self.RELATIONS_WS_NAME = "Relations"
+        self.DISAMBIGUATING_SEPARATOR = "##ID:##"
 
         # Graph operations ================
         self.graph = Graph()
-        self.original_stats = None
-        self.original_id_to_label: dict[str, str] = dict()
-        self.original_id_to_obj: dict[str, Union[(Group, Edge, Node)]] = dict()
-        self.obj_keys = list()
-        self.obj_values = list()
-        self.dup_objects = list()
+        self.original_stats: GraphStats
+        # self.original_id_to_label: dict[str, str] = dict()
+        # self.original_id_to_obj: dict[str, Union[(Group, Edge, Node)]] = dict()
+        # self.obj_keys = list()
+        # self.obj_values = list()
+        # self.dup_objects = list()
 
     def kill_excel(self) -> None:
-        os.system('taskkill /f /im "excel.exe"')
+        """Providing a utility to help primarily during test"""
+        os.system('taskkill /f /im "excel.exe"')  # FIXME: Windows only
 
-    def excel_type_verification(self, type) -> None:
-        """Check if the given type is valid for Excel operations."""
+    def bulk_data_op_verify(self, type) -> None:
+        """Check if the given bulk data management type is valid for Excel operations."""
         self.type = type or self.WB_TYPES[0]  # default
         if self.type not in self.WB_TYPES:
             raise RuntimeWarning("Invalid Excel type. Use: %s" % ", ".join(self.WB_TYPES))
@@ -996,7 +1014,7 @@ class ExcelManager:
     def create_excel_template(self, type) -> None:
         """Generate excel wb per template for that wb type."""
 
-        self.excel_type_verification(type)
+        self.bulk_data_op_verify(type)
 
         if os.path.isfile(self.TEMP_EXCEL_SHEET):
             os.remove(self.TEMP_EXCEL_SHEET)
@@ -1007,15 +1025,26 @@ class ExcelManager:
         # Inserting /organizing sheets
         excel_ws = excel_wb.active
 
+        # Create object ws
         objects_ws = excel_wb.create_sheet(self.OBJECTS_WS_NAME, 0)
+
+        # Add header to sheet
         objects_ws.cell(
-            row=1, column=1, value="FORMAT -> LABEL | ID (INDENTATION OF INFO MEANS BELONGING TO GROUP ABOVE.)"
+            row=1,
+            column=1,
+            value="FORMAT -> OBJECT_LABEL | OBJECT_ID (OPTIONAL TO SUPPORT DISAMBIGUATION) - NOTE: INDENTATION OF INFO ONE COLUMN DESIGNATES BELONGING TO OBJECT ABOVE.",
         )
 
+        # Add relations sheet and header
         if self.type == "relations":
             relations_ws = excel_wb.create_sheet(self.RELATIONS_WS_NAME, 1)
-            relations_ws.cell(row=1, column=1, value="FORMAT -> NODE1 | NODE2 | EDGE_LABEL | EDGE_ID ")
+            relations_ws.cell(
+                row=1,
+                column=1,
+                value="FORMAT -> NODE1_LABEL | NODE2_LABEL | EDGE_LABEL (OPTIONAL) | EDGE_OWNER (OPTIONAL - TO ASSIGN OWNERSHIP TO SPECIFIC GROUP) - NOTE: DISAMBIGUATION SUPPORTED BY CONCATENATING LABEL WITH '##ID:##'+ID SHARED WITH OBJECT",
+            )
 
+        # Clean up
         if excel_ws:
             excel_wb.remove(excel_ws)  # removing default sheet
         self.kill_excel()
@@ -1023,7 +1052,7 @@ class ExcelManager:
         excel_wb.close()
 
     def open_close_excel(*args, **kwargs):
-        """Provide wrapper for opening / saving / closing excel."""
+        """Provide wrapper for opening / saving / closing excel ops."""
         save = kwargs.get("save", False)
 
         def decorator(func):
@@ -1031,14 +1060,16 @@ class ExcelManager:
                 in_mem_file = None
                 excel_data = kwargs.get("excel_data", None)
                 type = kwargs.get("type", None)
-                self.excel_type_verification(type)
+                self.bulk_data_op_verify(type)
 
+                # Graph to excel
                 if save:
                     self.create_excel_template(type)
-                    sleep(0.5)
+                    sleep(0.5)  # FIXME: Unclear if necessary
                     with open(self.TEMP_EXCEL_SHEET, "rb") as f:
                         in_mem_file = io.BytesIO(f.read())
 
+                # Excel to graph
                 else:
                     # In case we are given a file path or in-memory file, for excel to graph
                     if excel_data:
@@ -1049,16 +1080,25 @@ class ExcelManager:
                                 in_mem_file = io.BytesIO(f.read())
                     # Primary use case - from template for graph to excel
                     else:
+                        # It is assumed that the template is already created and filled during graph_to_excel at this point
+                        # Lets pull a version into memory
                         with open(self.TEMP_EXCEL_SHEET, "rb") as f:
                             in_mem_file = io.BytesIO(f.read())
 
+                # If nothing in memory at this point we have an issue
                 if not in_mem_file:
                     raise RuntimeWarning("No excel data found to open.")
+
+                # provide fresh handles
                 self.excel_wb = pyxl.load_workbook(in_mem_file)
                 self.objects_ws = self.excel_wb[self.OBJECTS_WS_NAME]
                 if self.type == "relations":
                     self.relations_ws = self.excel_wb[self.RELATIONS_WS_NAME]
+
+                # Perform functions operations
                 func(self, *args, **kwargs)
+
+                # Clean up
                 if save:
                     self.excel_wb.save(self.TEMP_EXCEL_SHEET)
                 self.kill_excel()
@@ -1067,16 +1107,46 @@ class ExcelManager:
 
         return decorator
 
+    def disambiguate_object(self, obj: Union[Node, Group, str], direction: str = "out"):
+        """Generate Name:ID string for object - disambiguate if needed.
+        direction: [in|out] - in for excel to graph, out for graph to excel"""
+
+        if direction == "out":
+            if not obj:
+                return None
+            if obj.name in self.original_stats.duplicate_names:  # migrate to using graphstats
+                return obj.name + self.DISAMBIGUATING_SEPARATOR + obj.id  # FIXME: IN EXCEL_TO_GRAPH
+            else:
+                return obj.name
+        elif direction == "in":
+            if not obj:
+                return None, None
+
+            if self.DISAMBIGUATING_SEPARATOR in obj:
+                name = obj.split(self.DISAMBIGUATING_SEPARATOR)[0]
+                id = obj.split(self.DISAMBIGUATING_SEPARATOR)[1]
+                if not all([name, id]):
+                    warn(f"Invalid deduplication format of edge information or empty name: {name}:{id}.", SyntaxWarning)
+                    return name, id
+                # Normal situation in deduplication notation
+                else:
+                    return name, id
+            # For normal non duplicate case
+            else:
+                return obj, None  # name,id
+
     @open_close_excel(save=True)
     def graph_to_excel_conversion(self, type=None, graph=None) -> None:
         """Converting graph object to excel sheet format for bulk data management operations."""
+        # lets assume there can be multiple graphs in session - so we should pass
         if graph:
             self.graph = graph
 
+        # Lets gather starting stats
         self.original_stats = self.graph.gather_graph_stats()
-        row = 2
 
-        def graph_object_extract_to_excel(self, input_node, indent_level):
+        def graph_object_extract_to_excel(self, input_node: Union[Group, Graph], indent_level):
+            """Extracting graph objects to excel."""
             nonlocal row
 
             sub_nodes = input_node.nodes
@@ -1085,9 +1155,6 @@ class ExcelManager:
             for node in sub_nodes.values():
                 # desc = node.get(description, "")
                 # url = node.get(url, "")
-
-                self.original_id_to_label[node.id] = node.name
-                self.original_id_to_obj[node.id] = node
 
                 # posting to excel
                 self.objects_ws.cell(row=row, column=indent_level, value=node.name)
@@ -1103,70 +1170,58 @@ class ExcelManager:
                 self.objects_ws.cell(row=row, column=indent_level + 1, value=group.id)
                 row += 1
 
-                self.original_id_to_label[group.id] = group.name
-                self.original_id_to_obj[group.id] = group
-
                 # Recursive extraction - adapting indent
                 graph_object_extract_to_excel(self, group, indent_level=indent_level + 1)
 
-        def relations_extract_to_excel(self, input_node):
+        def relations_extract_to_excel(self, input_node: Union[Group, Graph]):
+            """Extract relations recursively - providing owner if needed"""
             nonlocal row
 
-            sub_groups = input_node.groups
+            # Go through edges of this "owning" object
             sub_edges = input_node.edges
-
             for edge in sub_edges.values():
-
-                def deduplicate_obj(obj):
-                    obj.name = self.original_id_to_label[obj.id]
-                    if obj.name in self.dup_objects:  # migrate to using graphstats
-                        return obj.name + "##ID:##" + obj.id  # FIXME: IN EXCEL_TO_GRAPH
-                    else:
-                        return obj.name
-
-                node1name = deduplicate_obj(edge.node1)
-                node2name = deduplicate_obj(edge.node2)
+                node1name = self.disambiguate_object(edge.node1)
+                node2name = self.disambiguate_object(edge.node2)
 
                 group_name = ""
                 if isinstance(input_node, Group):
-                    group_name = deduplicate_obj(input_node)
+                    group_name = self.disambiguate_object(input_node)
+
+                edge_name = self.disambiguate_object(edge)
 
                 # post to excel
                 self.relations_ws.cell(row=row, column=col, value=node1name)
                 self.relations_ws.cell(row=row, column=col + 1, value=node2name)
-                self.relations_ws.cell(row=row, column=col + 2, value=edge.name)
-                self.relations_ws.cell(row=row, column=col + 3, value=edge.id)
-                self.relations_ws.cell(row=row, column=col + 4, value=group_name)
+                self.relations_ws.cell(row=row, column=col + 2, value=edge_name)
+                self.relations_ws.cell(row=row, column=col + 3, value=group_name)
                 row += 1
 
+            # Go to next level of relations / ownership - recursive
+            sub_groups = input_node.groups
             for group in sub_groups.values():
                 relations_extract_to_excel(self, group)
 
+        # Perform the transformation to excel ========================
         if self.type == "obj_and_hierarchy" or self.type == "relations":
-            # self.objects_ws = self.excel_wb[self.OBJECTS_WS_NAME]
+            row = 2
             graph_object_extract_to_excel(self, self.graph, indent_level=1)
 
         if self.type == "relations":
-            # self.relations_ws = self.excel_wb[self.RELATIONS_WS_NAME]
             row = 2
             col = 1
-            self.obj_keys = list(self.original_id_to_label.keys())
-            self.obj_values = list(self.original_id_to_label.values())
-            self.dup_objects = list(filter(lambda x: True if self.obj_values.count(x) > 1 else False, self.obj_values))
-
             relations_extract_to_excel(self, self.graph)
 
     @open_close_excel(save=False)
-    def excel_to_graph_conversion(self, type=None, excel_data=None):
-        self.excel_type_verification(type)
+    def excel_to_graph_conversion(self, type: Optional[str] = None, excel_data=None):
+        """Converting excel sheet data back into graph object."""
+        self.bulk_data_op_verify(type)
 
-        if not self.original_stats:
-            self.original_stats = Graph().gather_graph_stats()
+        # Update original stats
+        self.original_stats = self.graph.gather_graph_stats()
 
+        # Begin transformation from excel to graph ========================
         if self.type == "obj_and_hierarchy":
-            # read the data back into structure - making changes
-            # read excel for data / get some stats
-
+            # Pull out object data
             obj_data = list(self.objects_ws.values)
             obj_data.pop(0)  # remove header
 
@@ -1184,132 +1239,153 @@ class ExcelManager:
             # identifying groups
             num_items = len(obj_data)
             group_identifiers = list(map(lambda x: 1 if indent[x + 1] > indent[x] else 0, range(0, num_items - 1)))
-            group_identifiers.append(0)  # small limitation - deepest or last cannot be group
+            group_identifiers.append(0)  # small limitation - deepest or last cannot be group - must have submembers
 
-            # identifying ownership
-            owner = dict()
+            # sorting ownership based on indents/groups
+            owner_indexing: dict[int, Union[int, None]] = dict()
             indent_and_group_ident = list(zip(indent, group_identifiers))
             for i in range(0, num_items):
-                owner[i] = None
+                owner_indexing[i] = None
                 if i == 0:
                     continue
                 curr_indent = indent[i]
                 for j, (indent_i, is_group) in enumerate(reversed(indent_and_group_ident[:i])):
                     if indent_i == curr_indent - 1 and is_group == 1:
-                        owner[i] = i - (j + 1)
+                        owner_indexing[i] = i - (j + 1)
                         break
 
-            # of format: label|id (optional)
-
-            # identifying last used Id # TODO: NEEDS REFACTORING - ID COUNTING in yEd IS PER OWNER
-            ids = sorted(self.original_id_to_label)
-            if ids:
-                last_id = ids[-1]
-                last_id_num = re.match(r".*?(\d+)", last_id)
-                if last_id_num and last_id_num.group(1):
-                    last_id = int(last_id_num.group(1))
-            else:
-                last_id = 0
-
-            objects = list()
             # Building / Modifying objects
-            all_bulk_mod_ids = set()
-            all_curr_obj_ids = set(self.original_id_to_obj.keys())
-            for i, (nr_indent, gr_i, obj_row) in enumerate(zip(indent, group_identifiers, obj_data)):
+            objects = list()
+            object_id_mappings: dict[str, str] = dict()
+            # all_bulk_mod_ids = set()
+            # all_curr_obj_ids = set(self.original_id_to_obj.keys())
+            for i, (starting_indent, gr_i, obj_row) in enumerate(zip(indent, group_identifiers, obj_data)):
                 # Extracting label and id
-                name = obj_row[nr_indent]
+                name = obj_row[starting_indent]
                 id = None
                 try:
-                    id = obj_row[nr_indent + 1]
+                    id = obj_row[starting_indent + 1]
                 except Exception as e:
                     print(f"Node missing Id: {e}.")
-                else:
-                    all_bulk_mod_ids.add(id)
 
                 # Checks
-                id_given = id is not None
-                id_exists = id is not None and id in self.original_id_to_label
+                id_exists = id is not None
+                id_found = id in self.original_stats.all_objects.keys()
+
                 is_group = gr_i == 1
                 is_node = gr_i == 0
-                is_group_owned = owner[i] is not None
-
-                # giving an id if not one assigned
-                if not id_given:
-                    if is_group:
-                        id = "g" + str(last_id + 1)
-                    if is_node:
-                        id = "n" + str(last_id + 1)
-                    last_id += 1
-
+                is_group_owned = owner_indexing[i] is not None
                 if is_group_owned:
-                    owner_inst = objects[owner[i]]
+                    owner_index = owner_indexing[i]  # this works because the owner is always before
+                    owner_object = objects[owner_index]
+                else:
+                    owner_object = self.graph
 
-                # This is a new object
-                if not id_exists:
+                # This is a new object - create it
+                if not id_found:
+                    # Add group
                     if is_group:
-                        if is_group_owned:
-                            objects.append(owner_inst.add_group(name))
-                        else:
-                            objects.append(self.graph.add_group(name))
+                        new_group = owner_object.add_group(name)
+                        objects.append(new_group)
 
+                        if id_exists:
+                            object_id_mappings[id] = new_group.id
+
+                    # Add node
                     elif is_node:
-                        if is_group_owned:
-                            objects.append(owner_inst.add_node(name))
-                        else:
-                            objects.append(self.graph.add_node(name))
-
+                        new_node = owner_object.add_node(name)
+                        objects.append(new_node)
+                        if id_exists:
+                            object_id_mappings[id] = new_node.id
                     else:
                         raise NotImplementedError("This state not implemented")
 
                 elif id_exists:  # TODO: NEED TO FINISH THIS
-                    # changed name
-                    existing_obj = self.original_id_to_obj[id]
+                    # recovering previous object
+                    existing_obj = self.original_stats.all_objects[id]
+
+                    # change from node -> group
+                    if isinstance(existing_obj, Node) and is_group:
+                        # remove node
+                        existing_obj.parent.remove_node(id)
+
+                        # add group
+                        new_group = owner_object.add_group(name)
+                        objects.append(new_group)
+                        object_id_mappings[id] = new_group.id
+
+                        # TODO: ADD CONVERSION MAPPING - ID CHANGES
 
                     # changed structuring from node <-> group
+                    # group -> node
+                    elif isinstance(existing_obj, Group) and not is_group:
+                        # remove group (without changing dependencies)
+                        existing_obj.parent.remove_group(existing_obj, heal=False)
 
-                    # changed owner
+                        # add node
+                        new_node = owner_object.add_node(name)
+                        objects.append(new_node)
+                        object_id_mappings[id] = new_node.id
 
-                    # changed owning
+                    elif existing_obj.name != name:
+                        existing_obj.name = name
 
                     objects.append(existing_obj)
 
-            # Deleted objects
-            all_deleted_obj_ids = all_curr_obj_ids.difference(all_bulk_mod_ids)
+            # Deleted objects - items previously with ids and ids are no longer there
+            # Finding difference of ids - previous ids no longer there... #FIXME: WHAT ABOUT CHANGED IDS?
+            all_updated_ids = set([obj.id for obj in [obj for obj in objects if obj] if obj.id])
+            all_orig_object_ids = set(self.original_stats.all_objects)
+            all_deleted_obj_ids = all_orig_object_ids.difference(all_updated_ids)
             for obj_id in all_deleted_obj_ids:
-                obj: Group | Node = self.original_id_to_obj[obj_id]
+                obj: Group | Node = self.original_stats.all_objects[obj_id]
                 parent = obj.parent or self.graph
-                if isinstance(obj, Group):  # group  #TODO:
+                if isinstance(obj, Group):  # group
                     # find all immediate dependents and connect them to owner
-                    parent.remove_group(obj_id)
+                    parent.remove_group(obj_id)  # TODO: SHOULD HEALING BE REMOVED?
 
                 elif isinstance(obj, Node):  # node
                     parent.remove_node(obj_id)
 
         elif self.type == "relations":
-            # Columns
-            # node1name
-            # node2name
-            # label
-            # id
+            # Access the relations sheet
             self.relations_ws = self.excel_wb[self.RELATIONS_WS_NAME]
             relations_data = self.relations_ws.values
             row_length = None
+
+            # declarations
             edge_ids_after_mod = set()
 
+            # process sheet rows
             count: int = 0
             for row in relations_data:
                 if count == 0:
                     row_length = len(row)
                     count += 1
                     continue
+
+                # Declarations ===================================
+                # names
                 node1_name: str = ""
                 node2_name: str = ""
                 edge_name: str = ""
-                edge_id: str = ""
+                owner_name: str = ""
 
-                # separating row values into variables
+                # ids
+                node1_id: str = ""
+                node2_id: str = ""
+                edge_id: str = ""
+                owner_id: str = ""
+
+                # found flag
+                node1_found = False
+                node2_found = False
+                edge_found = False
+                owner_found = False
+
+                # separating row values into variables (before disambiguation)
                 if row_length == 4:
-                    node1_name, node2_name, edge_name, edge_id = row
+                    node1_name, node2_name, edge_name, owner_name = row
                     edge_id = str(edge_id)
                 elif row_length == 3:
                     node1_name, node2_name, edge_name = row
@@ -1317,61 +1393,105 @@ class ExcelManager:
                     node1_name, node2_name = row
 
                 # Quick check if we are working with minimally complete data
-                two_node_id_check = node1_name is not None and node2_name is not None
-                if not two_node_id_check:
-                    raise RuntimeWarning("Node names not found...skipping line of Relations.")
+                # At this point the name is name(+id) - assumed we can ignore empty nodes / warn
+                two_node_check = node1_name is not None and node2_name is not None
+                if not two_node_check:
+                    warn("Node names not found...skipping line of Relations.", SyntaxWarning)
                     continue
 
-                # Getting edge info - just helps with aligning with existing data for modification
-                label_check = edge_name is not None
-                edge_id_assigned = edge_id is not None
-                edge_id_found = False
-                if edge_id_assigned:
-                    edge_id_found = edge_id in self.original_stats.all_edges.keys()
+                # Disambiguate the object information based on constant separator
+                node1_name, node1_id = self.disambiguate_object(node1_name, direction="in")
+                node2_name, node2_id = self.disambiguate_object(node2_name, direction="in")
+                edge_name, edge_id = self.disambiguate_object(edge_name, direction="in")
+                owner_name, owner_id = self.disambiguate_object(owner_name, direction="in")
 
-                # Identify nodes - existing or new - and possible deduplication
-                node1_dedup_req = "##ID:##" in node1_name  # and in self.dup_objects
-                if node1_dedup_req:
-                    node1_name = node1_name.split("##ID:##")[0]
-                    node1_id = node1_name.split("##ID:##")[1]
-                    node1_found = node1_id in self.obj_keys
-                    if node1_found:
-                        node1_id = self.obj_values[self.obj_keys.index(node1_id)]
+                # Try to reidentify items ========================================
+                def find_checks(name, id):
+                    result_object = None
+                    id_found = False
+                    name_found = False
 
-                node2_found = node2_name in self.obj_values
-                node2_dedup_req = node2_name in self.dup_objects
-                if node2_found and not node2_dedup_req:
-                    node2_id = self.obj_keys[self.obj_values.index(node2_name)]
-                # TODO: ADD LOGIC FOR node2_found and node2_dedup_req
+                    # look for ID - in case of disambiguation
+                    if id:
+                        id_found = id in self.original_stats.all_objects.keys()
+                        if id_found:
+                            result_object = self.original_stats.all_objects[id]
 
-                nodes_found = False
-                if node1_id and node2_id:
-                    nodes_found = True
+                    if not result_object:
+                        # Look by name
+                        if name:
+                            name_found = (
+                                name in self.original_stats.name_to_ids.keys()
+                                and not self.original_stats.name_reused(name)
+                            )
+                            if name_found:
+                                result_object = self.original_stats.all_objects[
+                                    self.original_stats.name_to_ids[name][0]
+                                ]
 
-                # modify
-                if edge_id_found and nodes_found:
-                    # make changes - but only if nodes are found
-                    edge = self.original_stats.all_edges[edge_id]
-                    edge.node1_id = node1_id
-                    edge.node2_id = node2_id
-                    edge.label = edge_name
+                    return result_object, result_object is not None  # , any(id_found, name_found), id_found, name_found
+
+                # Looking for edge =================================
+                edge_object, edge_found = find_checks(edge_name, edge_id)
+
+                # Looking for node 1 ================================
+                node1_object, node1_found = find_checks(node1_name, node1_id)
+
+                # Looking for node 2 =================================
+                node2_object, node2_found = find_checks(node2_name, node2_id)
+
+                # Looking for owner =================================
+                owner_object, owner_found = find_checks(owner_name, owner_id)
+
+                # At this point - it is assumed that the user already ran objects and hierarchy and therefore objects are fixed
+                edge_nodes_found = all([node1_found, node2_found])
+                if not edge_nodes_found:
+                    warn("Object not found...skipping line of Relations.", SyntaxWarning)
+                    continue
+
+                # found edge - modify
+                if edge_found:
+                    # Update Node 1, node2, name
+                    edge_object.node1 = node1_object
+                    edge_object.node2 = node2_object
+                    edge_object.name = edge_name
+
+                    # if no owner specified - assign to graph
+                    if owner_name or owner_id:  # owner specified
+                        pass  # do nothing here
+                    else:  # no owner specified
+                        owner_object = self.graph  # specify graph as parent
+
+                    # check ownership change
+                    if edge_object.parent is not owner_object:  # if change in parent
+                        # update ownership
+                        # TODO: UPDATE EDGE OWNER
+                        if owner_object:
+                            # remove edge
+                            edge_object.parent.remove_edge(edge_object)
+                            # Add edge
+                            new_edge = owner_object.add_edge(edge_object)
+                        else:  # no  owner successfully specified
+                            # add edge
+                            new_edge = owner_object.add_edge(edge_object)
+                    # Otherwise - just passing on edge for id recording
+                    else:
+                        new_edge = edge_object
 
                     # keep track of edges that were existing and still existing
-                    edge_ids_after_mod.add(edge.edge_id)
+                    edge_ids_after_mod.add(new_edge.id)
 
-                elif not nodes_found:
-                    if not node1_found:
-                        raise NameError(f"Node {node1_id} not found.")
-                    if not node2_found:
-                        raise NameError(f"Node {node2_id} not found.")
-
-                else:  # new / id not existing
+                # not found - create
+                elif not edge_found:
                     edge_init_dict = dict()
-                    edge_init_dict["node1_id"] = node1_id
-                    edge_init_dict["node2_id"] = node2_id
-                    edge_init_dict["label"] = edge_name
+                    edge_init_dict["node1"] = node1_object
+                    edge_init_dict["node2"] = node2_object
+                    edge_init_dict["name"] = edge_name
                     edge_init_dict = {key: value for (key, value) in edge_init_dict.items() if value is not None}
-                    self.graph.add_edge(**edge_init_dict)
+                    if not owner_object:
+                        owner_object = self.graph
+                    new_edge = owner_object.add_edge(**edge_init_dict)
+                    edge_ids_after_mod.add(new_edge.id)
 
             # Deleting edges that have been deleted
             all_bulk_edge_ids = set(list(self.original_stats.all_edges.keys()))
@@ -1437,9 +1557,21 @@ class Graph:
         """Adding group to Graph"""
         return add_group(self, group, **kwargs)
 
-    def add_edge(self, node1: Union[Group, Node, str], node2: Union[Group, Node, str], **kwargs) -> Edge:
-        """Adding edge to Graph - uses node / group objects or accepts names (creating new nodes under self)."""
-        return add_edge(self, node1, node2, **kwargs)
+    def add_edge(
+        self,  # owner
+        node1: Optional[Union[(Node, Group, str)]] = None,
+        node2: Optional[Union[(Node, Group, str)]] = None,
+        **kwargs,
+    ) -> Edge:
+        """Adding edge to Graph - for node1/node2 uses node / group objects or accepts names (creating new nodes under self) - or function can alternatively accept an instantiated Edge object."""
+
+        # map args into kwargs in case of excel data management ops
+        if node1:
+            kwargs["node1"] = node1
+        if node2:
+            kwargs["node2"] = node2
+
+        return add_edge(self, **kwargs)
 
     def define_custom_property(self, scope, name, property_type, default_value):
         """Adding custom properties to graph (which makes them available on the contained objects in yEd)"""
@@ -1461,9 +1593,9 @@ class Graph:
         """Remove/Delete a node from graph"""
         remove_node(self, node)
 
-    def remove_group(self, group: Union[Group, str]) -> None:
+    def remove_group(self, group: Union[Group, str], **kwargs) -> None:
         """Removes a group from within current graph object (and same parent graph)."""
-        remove_group(self, group)
+        remove_group(self, group, **kwargs)
 
     def remove_edge(self, edge: Union[Edge, str]) -> None:
         """Removing edge from graph - uses id."""
@@ -1854,13 +1986,13 @@ class Graph:
 
         return new_graph
 
-    def manage_graph_data_in_excel(self, type=None):
-        """Port graph data into Excel in several formats for easy and bulk creation and management.  Then ports back into python graph structure."""
+    def manage_graph_data_in_excel(self, type: Optional[str] = None):
+        """Port graph data into Excel in several formats for easy and bulk creation and management.  Then ports back into python graph structure. Types: "obj_and_hierarchy", "object_data", "relations" """
         return ExcelManager().bulk_data_management(graph=self, type=type)
 
     def gather_graph_stats(self) -> GraphStats:
         """Creating current Graph Stats for the current graph"""
-        return GraphStats(self)
+        return GraphStats(graph=self)
 
     def run_graph_rules(self, correct: Optional[str] = None) -> None:
         """Check a few graph items that are most likely to fail following manual data management.  Correct them automatically or manually."""
@@ -1873,8 +2005,8 @@ class Graph:
             """Check for edges with no longer valid nodes (these will prevent yEd from opening the file).  Correct them automatically or manually."""
             stranded_edges = set()
             for edge_id, edge in graph_stats.all_edges.items():
-                node1_exist = edge.node1 in graph_stats.all_nodes.keys() or edge.node1 in graph_stats.all_groups.keys()
-                node2_exist = edge.node2 in graph_stats.all_nodes.keys() or edge.node2 in graph_stats.all_groups.keys()
+                node1_exist = edge.node1 in graph_stats.all_objects.values()
+                node2_exist = edge.node2 in graph_stats.all_objects.values()
                 at_least_one_edge = any([node1_exist, node2_exist])
                 stranded_edge = not all([node1_exist, node2_exist])
                 if stranded_edge:
@@ -2047,7 +2179,7 @@ def assign_traceable_id(obj) -> None:
         )  # FIXME: HAS TO BE THE INDEX OF THIS ITEM IN THE LIST
 
 
-def update_traceability(obj, owner, operation) -> None:
+def update_traceability(obj, owner, operation, heal=True) -> None:
     """Updating ownership of object based on parent."""
 
     if operation == "add":
@@ -2076,17 +2208,18 @@ def update_traceability(obj, owner, operation) -> None:
 
         elif isinstance(obj, Group):
             # reroute dependents ===================
-            for node in obj.nodes.values():
-                node.parent = obj.parent  # reassign parent: node side
-                obj.parent.nodes[node.id] = node  # reassign parent: group side
+            if heal:
+                for node in obj.nodes.values():
+                    node.parent = obj.parent  # reassign parent: node side
+                    obj.parent.nodes[node.id] = node  # reassign parent: group side
 
-            for edge in obj.edges.values():
-                edge.parent = obj.parent  # reassign parent: edge side
-                obj.parent.edges[edge.id] = edge  # reassign parent: group/graph side
+                for edge in obj.edges.values():
+                    edge.parent = obj.parent  # reassign parent: edge side
+                    obj.parent.edges[edge.id] = edge  # reassign parent: group/graph side
 
-            for group in obj.groups.values():
-                group.parent = obj.parent
-                obj.parent.groups[group.id] = group  # reassign parent: group side
+                for group in obj.groups.values():
+                    group.parent = obj.parent
+                    obj.parent.groups[group.id] = group  # reassign parent: group side
 
             del obj.parent.groups[obj.id]
             del obj.parent.combined_objects[obj.id]
@@ -2109,38 +2242,48 @@ def add_node(owner, node, **kwargs) -> Node:
     return node
 
 
-def add_edge(owner, node1, node2, **kwargs) -> Edge:
+def add_edge(owner: Union[(Graph, Group)], **kwargs) -> Edge:
     """Adding edge to graph -
-    if names provided - creates nodes under the owner,
-    otherwise, expects node / group objects at or under this owner level."""
+    if node1/node2 names provided - creates nodes under the owner,
+    otherwise, expects node / group objects at or under this owner level.
+    Alternatively, can pass in an instantiated Edge object for ownership update."""
 
-    # Creating nodes if necessary from names - under owner
-    if isinstance(node1, str):
-        node1 = owner.add_node(node1)
+    edge = kwargs.get("edge", None)
 
-    if isinstance(node2, str):
-        node2 = owner.add_node(node2)
+    # If an edge is not passed in, create one
+    if not edge:
+        node1 = kwargs.get("node1", None)
+        node2 = kwargs.get("node2", None)
 
-    # If not valid object, like None, should error out
-    if not isinstance(node1, (Node, Group)):
-        raise RuntimeWarning(f"Object {node1} doesn't exist")
+        # Creating nodes if necessary from names - under owner
+        if isinstance(node1, str):
+            node1 = owner.add_node(node1)
+            kwargs["node1"] = node1
 
-    if not isinstance(node2, (Node, Group)):
-        raise RuntimeWarning(f"Object {node2} doesn't exist")
+        if isinstance(node2, str):
+            node2 = owner.add_node(node2)
+            kwargs["node2"] = node2
 
-    # http://graphml.graphdrawing.org/primer/graphml-primer.html#Nested
-    # The edges between two nodes in a nested graph have to be declared in a graph,
-    # which is an ancestor of both nodes in the hierarchy.
+        # If not valid object, like None, should error out
+        if not isinstance(node1, (Node, Group)):
+            raise RuntimeWarning(f"Object {node1} doesn't exist")
 
-    if isinstance(owner, Group):
-        if not (owner.is_ancestor(node1) and owner.is_ancestor(node2)):
-            raise RuntimeWarning("Group %s is not ancestor of both %s and %s" % (owner.id, node1.id, node2.id))
+        if not isinstance(node2, (Node, Group)):
+            raise RuntimeWarning(f"Object {node2} doesn't exist")
 
-    # Using only kwargs simplifies from_existing_graph
-    kwargs["node1"] = node1
-    kwargs["node2"] = node2
+        # http://graphml.graphdrawing.org/primer/graphml-primer.html#Nested
+        # The edges between two nodes in a nested graph have to be declared in a graph,
+        # which is an ancestor of both nodes in the hierarchy.
 
-    edge = Edge(**kwargs)
+        if isinstance(owner, Group):
+            if not (owner.is_ancestor(node1) and owner.is_ancestor(node2)):
+                raise RuntimeWarning("Group %s is not ancestor of both %s and %s" % (owner.id, node1.id, node2.id))
+
+        edge = Edge(**kwargs)
+
+    # If an edge is passed in, continue on to traceability update
+    else:
+        pass
 
     update_traceability(obj=edge, owner=owner, operation="add")
 
@@ -2160,7 +2303,8 @@ def add_group(owner, group, **kwargs) -> Group:
         if group:
             kwargs["name"] = group
         group = Group(**kwargs)
-    update_traceability(obj=group, owner=owner, operation="add")
+    heal: bool = kwargs.get("heal", True)
+    update_traceability(obj=group, owner=owner, operation="add", heal=heal)
     return group
 
 
@@ -2199,29 +2343,3 @@ def remove_edge(owner, edge) -> None:
             raise RuntimeWarning(f"Edge {edge} doesn't exist")
         edge = owner.edges[edge]
     update_traceability(obj=edge, owner=owner, operation="remove")
-
-
-def find_by_id(owner: GraphStats, id) -> Union[Node, Group, Edge, None]:
-    """Find object by unique yEd id."""
-    if id in owner.all_nodes:
-        return owner.all_nodes[id]
-    if id in owner.all_groups:
-        return owner.all_groups[id]
-    if id in owner.all_edges:
-        return owner.all_edges[id]
-    return None
-
-
-def find_by_name(owner: GraphStats, name) -> List[Union[Node, Group, Edge]]:
-    """Find object by user assigned name - needs to provide for multiple (needs deduplication)."""
-    objects = []
-    for id, node in owner.all_nodes.items():
-        if node.name == name:
-            objects.append(node)
-    for id, group in owner.all_groups.items():
-        if group.name == name:
-            objects.append(group)
-    for id, edge in owner.all_edges.items():
-        if edge.name == name:
-            objects.append(edge)
-    return objects
