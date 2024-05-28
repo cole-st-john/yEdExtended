@@ -62,26 +62,27 @@ Hardcoding Example:
 # Instantiate graph instance
 graph1 = yed.Graph()
 
-# Add arbitrary graph detail - nodes and edges
-graph1.add_node("a")
-graph1.add_node("b")
-graph1.add_edge("a", "b")
+# Adding arbitrary graph detail - nodes
+a = graph1.add_node("a")
+b = graph1.add_node("b")
+
+# Adding edge (using node objects)
+graph1.add_edge(a, b)
 
 # Add arbitrary graph detail - group and group objects
 group1 = graph1.add_group("group 1", shape="rectangle")
-group1.add_node("c")
-group1.add_node("d")
+
+# Adding edge using node names, under owning group
 group1.add_edge("c", "d")
 ```
 
 Programmatic Example:
 ```python
 # Adding graph objects based on csv input
-import csv
-with open("examples/test.csv", encoding="utf-8-sig") as csv_file: 
-	csv_reader = csv.reader(csv_file)
-	for row in csv_reader:
-	    graph1.add_node(row)
+with open("examples\\test.csv", encoding="utf-8-sig") as csv_file:
+    csv_reader = csv.reader(csv_file)
+    for row in csv_reader:
+        graph1.add_node(row[0])
 ```
 
 ## Reading existing GraphML files
@@ -101,10 +102,7 @@ yEdExtended provides for the majority of formatting one expects in yEd graphs.
 
 ```python
 # Add graph nodes and edges with some examples of non-default formatting
-graph1.add_node(
-    "foo",
-    font_family="Zapfino",
-)
+graph1.add_node("foo", font_family="Zapfino")
 
 graph1.add_node(
     "foo2",
@@ -113,31 +111,20 @@ graph1.add_node(
     underlined_text="true",
 )
 
-graph1.add_edge(
-    "foo1",
-    "foo2",
-)
-graph1.add_node(
-    "abc",
-    font_size="72",
-    height="100",
-)
+graph1.add_edge("foo1", "foo2")
 
-graph1.add_node(
-    "bar",
-    label="Multi\nline\ntext",
-)
-graph1.add_node(
-    "foobar",
-    label="""Multi
+graph1.add_node("abc", font_size="72", height="100")
+
+graph1.add_node("Multi\nline\ntext")
+
+graph1.add_node("foobar").add_label("""Multi
 Line
-Text!""",
-)
+Text!""")
 
 graph1.add_edge(
     "foo",
     "foo1",
-    label="EDGE!",
+    name="EDGE!",
     width="3.0",
     color="#0000FF",
     arrowhead="white_diamond",
