@@ -210,7 +210,17 @@ Following programmatic creation or modification of a graph, consider using the f
 
 Provides comprehensive support for great variety of ``node_shapes``, ``line_types``, ``font_styles``, ``arrow_types``, custom parameters, UML, complex and deeply nested relationship structures and more.
 
+## yEdExtended V1.0.12 vs V2.0.0
 
+**yEdExtended v2.0.0** is a major rewrite focusing on a instantiation method - using names vs ids.  These changes can be summarized as following:
+
+- **Backend ID Management:** The responsibility for managing IDs has been shifted primarily to the backend. This significant update enables the following enhancements:
+
+- **Support for Duplicate Names:** Allows the use of duplicate names across different levels and areas within a graph.
+
+- **Unique and Trackable IDs:** Despite allowing duplicate names, the system now provides and maintains unique and trackable IDs for all graph objects.
+
+This change simplifies object handling, ensuring better consistency and flexibility, especially in larger graph management.
 
 # Development
 
