@@ -36,8 +36,9 @@ graph1.define_custom_property("edge", "Year of build", "string", "")
 # Create Groups
 group1 = graph1.add_group("group1", custom_properties={"Country": "Kitchen"})
 
+
 # Create Nodes
-graph1.add_node(
+pasta_city = graph1.add_node(
     "Pasta City",
     custom_properties={
         "Population": "13000",
@@ -46,11 +47,13 @@ graph1.add_node(
         "Mayor": "Genarro",
     },
 )
-graph1.add_node(
+
+
+wurst_stadt = graph1.add_node(
     "Wurst Stadt",
     custom_properties={"Population": "25100", "Unemployment": "6.2", "Mayor": "Orlowsky"},
 )
-graph1.add_node(
+gruyereville = graph1.add_node(
     "Gruyereville",
     custom_properties={
         "Population": "29650",
@@ -62,9 +65,9 @@ graph1.add_node(
 
 # Create Edges
 graph1.add_edge(
-    "Pasta City",
-    "Wurst Stadt",
-    label="N666",
+    pasta_city,
+    wurst_stadt,
+    name="N666",
     arrowhead="none",
     custom_properties={
         "Year of build": "1974",
@@ -74,9 +77,9 @@ graph1.add_edge(
     },
 )
 graph1.add_edge(
-    "Pasta City",
-    "Gruyereville",
-    label="E55",
+    pasta_city,
+    gruyereville,
+    name="E55",
     arrowhead="none",
     custom_properties={
         "Year of build": "1986",
@@ -85,15 +88,15 @@ graph1.add_edge(
     },
 )
 graph1.add_edge(
-    "Gruyereville",
-    "Wurst Stadt",
-    label="E23",
+    gruyereville,
+    wurst_stadt,
+    name="E23",
     arrowhead="none",
     custom_properties={"Year of build": "2011", "Distance": "740", "Toll Free": "false"},
 )
 
 # Write Graph
-graph1.persist_graph("demo-custom-properties-nodes-edges.graphml", pretty_print=True)
+graph1.persist_graph("demo-custom-properties-nodes-edges.graphml", pretty_print=True).open_with_yed()
 
 print(40 * "=")
 print("""

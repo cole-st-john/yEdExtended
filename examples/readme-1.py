@@ -14,3 +14,5 @@ group1 = graph1.add_group("group 1", shape="rectangle")
 group1.add_node("c")
 group1.add_node("d")
 group1.add_edge("c", "d")
+
+graph1.persist_graph().open_with_yed()

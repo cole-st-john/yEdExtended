@@ -43,7 +43,7 @@ italy.add_node(
 italy.add_edge(
     "Turin",
     "Brescia",
-    label="E64",
+    name="E64",
     arrowhead="none",
     description="Length	246 km (153 mi)",
     url="https://en.wikipedia.org/wiki/European_route_E64",
@@ -51,7 +51,7 @@ italy.add_edge(
 italy.add_edge(
     "Turin",
     "Ivrea",
-    label="E612",
+    name="E612",
     arrowhead="none",
     description="Length	54 km (34 mi)",
     url="https://en.wikipedia.org/wiki/European_route_E612",
@@ -59,7 +59,7 @@ italy.add_edge(
 italy.add_edge(
     "Turin",
     "Savona",
-    label="E717",
+    name="E717",
     arrowhead="none",
     description="Length	141 km (88 mi)",
     url="https://en.wikipedia.org/wiki/European_route_E717",

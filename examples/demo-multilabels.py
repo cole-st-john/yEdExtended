@@ -8,13 +8,11 @@ graph1 = yed.Graph()
 
 graph1.add_node(
     "foo",
-    label="Center",
-    font_family="Zapfino",
     width="200",
     height="200",
     shape_fill="#FFFFFF",
     border_type="dotted",
-).add_label(
+).add_label("Center", font_family="Zapfino").add_label(
     "Top",
     model_position="t",
     font_family="Courier New",
@@ -41,11 +39,8 @@ graph1.add_node(
 )
 
 
-graph1.add_node(
+graph1.add_node("foo2", width="100", height="100").add_label(
     "foo2",
-    label="foo2",
-    width="100",
-    height="100",
 ).add_label(
     "North-West",
     model_name="corners",

@@ -15,7 +15,6 @@ print(node3.Population)
 print(edge1.Population)
 print(group1.Population)
 
-# graph1.persist_graph("test.graphml", overwrite=True).open_with_yed()
+graph1.persist_graph(overwrite=True).open_with_yed()
 
-process = yed.start_yed()
 #
