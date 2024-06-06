@@ -29,8 +29,6 @@ from xml.dom import minidom
 import openpyxl as pyxl
 import psutil
 
-# import pygetwindow as gw # potential future addition for window management
-
 # Enumerated parameters / Constants
 PROGRAM_NAME = "yEd.exe"
 
