@@ -1255,6 +1255,7 @@ class ExcelManager:
             # Building / Modifying objects
             objects = list()
             object_id_mappings: dict[str, str] = dict()
+            id_replaced_by_other_mapping: dict[str, Union[(Node, Group)]] = dict()
             # all_bulk_mod_ids = set()
             # all_curr_obj_ids = set(self.original_id_to_obj.keys())
             for i, (starting_indent, gr_i, obj_row) in enumerate(zip(indent, group_identifiers, obj_data)):
@@ -1299,13 +1300,15 @@ class ExcelManager:
                         raise NotImplementedError("This state not implemented")
 
                 elif id_exists:  # TODO: NEED TO FINISH THIS
-                    # recovering previous object
-                    existing_obj = self.original_stats.all_objects[id]
+                    existing_obj = self.original_stats.all_objects[id]  # FIXME:
 
                     # change from node -> group
                     if isinstance(existing_obj, Node) and is_group:
                         # remove node
-                        existing_obj.parent.remove_node(id)
+                        try:
+                            existing_obj.parent.remove_node(existing_obj)
+                        except Exception as e:
+                            warn("Node no longer existing - to remove")
 
                         # add group
                         new_group = owner_object.add_group(name)
@@ -1318,32 +1321,67 @@ class ExcelManager:
                     # group -> node
                     elif isinstance(existing_obj, Group) and not is_group:
                         # remove group (without changing dependencies)
-                        existing_obj.parent.remove_group(existing_obj, heal=False)
+                        try:
+                            existing_obj.parent.remove_group(existing_obj, heal=False)
+                        except Exception as e:
+                            warn("Group no longer existing - to remove")
 
                         # add node
                         new_node = owner_object.add_node(name)
                         objects.append(new_node)
                         object_id_mappings[id] = new_node.id
 
-                    elif existing_obj.name != name:
-                        existing_obj.name = name
+                    # ownership changed - update
+                    elif existing_obj.parent is not owner_object:
+                        if is_group:
+                            try:
+                                existing_obj.parent.remove_group(existing_obj, heal=False)
+                            except Exception as e:
+                                warn("Group no longer existing - to remove")
 
-                    objects.append(existing_obj)
+                            mod_group = owner_object.add_group(name)
+                            objects.append(mod_group)
+                            object_id_mappings[id] = mod_group.id
+
+                        elif is_node:
+                            try:
+                                existing_obj.parent.remove_node(existing_obj)
+                            except Exception as e:
+                                warn("Node no longer existing - to remove")
+
+                            mod_node = owner_object.add_node(name)
+                            objects.append(mod_node)
+                            object_id_mappings[id] = mod_node.id
+
+                    else:
+                        objects.append(existing_obj)
+
+                    # just name changed
+                    if existing_obj.name != name:
+                        existing_obj.name = name
 
             # Deleted objects - items previously with ids and ids are no longer there
             # Finding difference of ids - previous ids no longer there... #FIXME: WHAT ABOUT CHANGED IDS?
-            all_updated_ids = set([obj.id for obj in [obj for obj in objects if obj] if obj.id])
-            all_orig_object_ids = set(self.original_stats.all_objects)
-            all_deleted_obj_ids = all_orig_object_ids.difference(all_updated_ids)
-            for obj_id in all_deleted_obj_ids:
-                obj: Group | Node = self.original_stats.all_objects[obj_id]
+            all_updated_obj = objects.copy()
+            all_orig_obj = list(self.original_stats.all_objects.values())
+            all_deleted_obj = [obj for obj in all_orig_obj if obj not in all_updated_obj]
+            for obj in all_deleted_obj:
                 parent = obj.parent or self.graph
                 if isinstance(obj, Group):  # group
                     # find all immediate dependents and connect them to owner
-                    parent.remove_group(obj_id)  # TODO: SHOULD HEALING BE REMOVED?
-
+                    try:
+                        parent.remove_group(obj, heal=False)
+                    except Exception as e:
+                        warn("Group no longer existing - to remove")
                 elif isinstance(obj, Node):  # node
-                    parent.remove_node(obj_id)
+                    try:
+                        parent.remove_node(obj)
+                    except Exception as e:
+                        warn("Node no longer existing - to remove")
+
+            # Update all ids - after delete operations
+            for obj in objects:
+                assign_traceable_id(obj)
 
         elif self.type == "relations":
             # Access the relations sheet
@@ -1411,9 +1449,9 @@ class ExcelManager:
 
                     # look for ID - in case of disambiguation
                     if id:
-                        id_found = id in self.original_stats.all_objects.keys()
+                        id_found = id in self.original_stats.all_graph_items.keys()
                         if id_found:
-                            result_object = self.original_stats.all_objects[id]
+                            result_object = self.original_stats.all_graph_items[id]
 
                     if not result_object:
                         # Look by name
@@ -1423,7 +1461,7 @@ class ExcelManager:
                                 and not self.original_stats.name_reused(name)
                             )
                             if name_found:
-                                result_object = self.original_stats.all_objects[
+                                result_object = self.original_stats.all_graph_items[
                                     self.original_stats.name_to_ids[name][0]
                                 ]
 
@@ -1455,7 +1493,7 @@ class ExcelManager:
                     edge_object.name = edge_name
 
                     # if no owner specified - assign to graph
-                    if owner_name or owner_id:  # owner specified
+                    if owner_found:  # owner specified
                         pass  # do nothing here
                     else:  # no owner specified
                         owner_object = self.graph  # specify graph as parent
@@ -1471,7 +1509,9 @@ class ExcelManager:
                             new_edge = owner_object.add_edge(edge_object)
                         else:  # no  owner successfully specified
                             # add edge
+                            assert isinstance(owner_object, Union([Group, Graph]))
                             new_edge = owner_object.add_edge(edge_object)
+
                     # Otherwise - just passing on edge for id recording
                     else:
                         new_edge = edge_object
@@ -2012,7 +2052,7 @@ class Graph:
 
             if correct == "auto":
                 for edge in stranded_edges:
-                    edge.parent.remove_edge(edge.id)  # Any further postprocessing needed?
+                    edge.parent.remove_edge(edge)  # Any further postprocessing needed?
 
             elif correct == "manual":
                 # Excel - run relations and highlight edges with issues?
@@ -2168,13 +2208,25 @@ def assign_traceable_id(obj) -> None:
         parent_id_prefix = obj.parent.id + "::"
 
     if isinstance(obj, Node) or isinstance(obj, Group):
-        obj.id = (
-            parent_id_prefix + "n" + str(len(obj.parent.combined_objects))
-        )  # FIXME: HAS TO BE THE INDEX OF THIS ITEM IN THE LIST
+        # This object already logged under this owner - rename to order in list
+        if obj in list(obj.parent.combined_objects.values()):
+            obj_parent_index = list(obj.parent.combined_objects.values()).index(obj)
+            obj.id = (
+                parent_id_prefix + "n" + str(obj_parent_index)
+            )  # FIXME: HAS TO BE THE INDEX OF THIS ITEM IN THE LIST
+        # this item is new - appending to end of current dict - give new number for that level
+        else:
+            obj.id = parent_id_prefix + "n" + str(len(obj.parent.combined_objects))
     elif isinstance(obj, Edge):
-        obj.id = (
-            parent_id_prefix + "e" + str(len(obj.parent.edges))
-        )  # FIXME: HAS TO BE THE INDEX OF THIS ITEM IN THE LIST
+        if obj in list(obj.parent.edges.values()):
+            obj_parent_index = list(obj.parent.edges.values()).index(obj)
+            obj.id = parent_id_prefix + "e" + str(obj_parent_index)
+        else:
+            obj.id = (
+                parent_id_prefix + "e" + str(len(obj.parent.edges))
+            )  # FIXME: HAS TO BE THE INDEX OF THIS ITEM IN THE LIST
+
+    print(obj.id)
 
 
 def update_traceability(obj, owner, operation, heal=True) -> None:
@@ -2306,7 +2358,7 @@ def add_group(owner, group, **kwargs) -> Group:
     return group
 
 
-def remove_node(owner, node) -> None:
+def remove_node(owner, node, **kwargs) -> None:
     """Remove/Delete a node - accepts node or node id"""
     if isinstance(node, Node):
         if node not in owner.nodes.values():
@@ -2318,7 +2370,7 @@ def remove_node(owner, node) -> None:
     update_traceability(obj=node, owner=owner, operation="remove")
 
 
-def remove_group(owner, group) -> None:
+def remove_group(owner, group, **kwargs) -> None:
     """Removes a group from within current object."""
     if isinstance(group, Group):
         if group not in owner.groups.values():
@@ -2331,7 +2383,7 @@ def remove_group(owner, group) -> None:
     update_traceability(obj=group, owner=owner, operation="remove")
 
 
-def remove_edge(owner, edge) -> None:
+def remove_edge(owner, edge, **kwargs) -> None:
     """Removing edge - uses id."""
     if isinstance(edge, Edge):
         if edge not in owner.edges.values():

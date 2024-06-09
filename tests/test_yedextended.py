@@ -623,6 +623,7 @@ def test_removes():
     Given: simple graph instance
     When: items are removed (nodes / groups / edges)
     Then: the expected changes occur - ownership links are updated"""
+    # Creating simple graph ================================
     graph1 = Graph()
 
     # first level nodes
@@ -646,8 +647,10 @@ def test_removes():
     # third level items
     group1_1 = group1.add_group("group1_1")
 
+    # gather graph stats =========================
     stats1 = graph1.gather_graph_stats()
 
+    # Examining graph stats ==========================
     assert f in stats1.all_nodes.values()
     assert e in group1.nodes.values()
     assert a in stats1.all_nodes.values()
@@ -931,6 +934,44 @@ class Test_Excel_Related_Functionalities:
         return_string = excel1.graph.stringify_graph()
         assert reference_string == return_string
 
+    def test_excel_round_trip_change_1(self):
+        """
+        Given: simple graph instance from existing graphml
+        When: round trip  conversion is mocked - but with changes to existing
+        Then: the object output should be as expected"""
+
+        # n0 (ivrea): node -> group
+        # n1 (turin): ownership graph -> ivrea
+        # n2 (northern ..): group -> node
+        #  (savona ..): ownership northern -> graph
+        #  (brescia ..): ownership northern -> graph
+
+        # Get graph
+        excel1 = ExcelManager()
+        data1 = "examples\\yed_test_to_excel4.xlsx"
+        excel1.excel_to_graph_conversion(type="obj_and_hierarchy", excel_data=data1)
+        excel1.excel_to_graph_conversion(type="relations", excel_data=data1)
+        print("")
+        data2 = "examples\\yed_test_to_excel4_mod1.xlsx"
+        excel1.excel_to_graph_conversion(type="obj_and_hierarchy", excel_data=data2)
+        # excel1.excel_to_graph_conversion(type="relations", excel_data=data2)
+        # print("h")
+
+    def test_excel_round_trip_change_2(self):
+        """
+        Given: simple graph instance from existing graphml
+        When: some changes are made to edges
+        Then: the object output should be as expected"""
+
+        # Get graph
+        excel1 = ExcelManager()
+        data1 = "examples\\yed_test_to_excel4.xlsx"
+        excel1.excel_to_graph_conversion(type="obj_and_hierarchy", excel_data=data1)
+        excel1.excel_to_graph_conversion(type="relations", excel_data=data1)
+
+        data2 = "examples\\yed_test_to_excel4_mod2.xlsx"
+        excel1.excel_to_graph_conversion(type="relations", excel_data=data2)
+
     def get_filtered_sheet_values(self, sheet):
         """test helper function - Filter empty columns from excel data for test comparison"""
         data = []
@@ -940,3 +981,105 @@ class Test_Excel_Related_Functionalities:
             if filtered_row:  # Only add non-empty rows
                 data.append(filtered_row)
         return data
+
+
+def test_edge_with_custom_props_1():
+    """
+    Given: simple graph
+    When: adding edge with custom props
+    Then: the object output should be as expected"""
+
+    url = "www.google.com"
+    description = "test of edge props"
+
+    graph = Graph()
+
+    graph.define_custom_property("edge", "Distance", "int", "0")
+    graph.define_custom_property("edge", "Availability", "double", "100.0")
+    graph.define_custom_property("edge", "Toll Free", "boolean", "true")
+    graph.define_custom_property("edge", "Year of build", "string", "")
+
+    edge1 = graph.add_edge(
+        "Node1",
+        "Node2",
+        name="Edge1",
+        custom_properties={
+            "Year of build": "1974",
+            "Distance": "356",
+            "Toll Free": "false",
+            "Availability": "85.7",
+        },
+        url=url,
+        description=description,
+    )
+
+    file = "temp.graphml"
+    if os.path.exists(file):
+        os.remove(file)
+
+    graph.persist_graph()
+
+    assert edge1.url == url
+
+    if os.path.exists(file):
+        os.remove(file)
+
+
+def test_edge_with_custom_props_2():
+    """
+    Given: simple graph
+    When: adding edge with custom props
+    Then: the object output should be as expected"""
+
+    url = "www.google.com"
+    description = "test of edge props"
+
+    graph = Graph()
+
+    graph.define_custom_property("node", "Population", "int", "0")
+    graph.define_custom_property("node", "Unemployment", "double", "0.0")
+    graph.define_custom_property("node", "Environmental Engagements", "boolean", "false")
+    graph.define_custom_property("node", "Mayor", "string", "")
+    graph.define_custom_property("node", "Country", "string", "")
+
+    node1 = graph.add_node(
+        "Random City",
+        custom_properties={
+            "Population": "13000",
+            "Unemployment": "13.7",
+            "Environmental Engagements": "true",
+            "Mayor": "Genarro",
+        },
+        url=url,
+        description=description,
+    )
+
+    file = "temp.graphml"
+    if os.path.exists(file):
+        os.remove(file)
+
+    graph.persist_graph()
+
+    assert node1.url == url
+    assert node1.description == description
+
+    if os.path.exists(file):
+        os.remove(file)
+
+
+def test_node_geoms():
+    """
+    Given: simple graph
+    When: adding node with geom traits
+    Then: the object output should be as expected"""
+
+    file = "temp.graphml"
+    if os.path.exists(file):
+        os.remove(file)
+
+    graph = Graph()
+    graph.add_node("Node1", height="50", width="100", x="100", y="100")
+    graph.persist_graph()
+
+    if os.path.exists(file):
+        os.remove(file)
