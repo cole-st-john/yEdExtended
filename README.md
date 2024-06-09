@@ -139,6 +139,9 @@ graph1.add_edge(
 Sometimes, it is practical to mass edit or enter data in an interactive way.  yEdExtended includes functionality to enter basic to complex data and relationships using an interface to MS Excel interface. Note: to use this functionality, MS Excel must be installed and on path:
 
 ```python
+# Instantiate a graph
+graph1 = Graph()
+
 # Manage data in excel (add/remove/modify objects)
 graph1.manage_graph_data_in_excel() # default is object and hierachy management
 
@@ -190,10 +193,16 @@ graph_file = graph1.persist_graph("pretty_example.graphml", pretty_print=True)  
 To ease task switching between Python and yEd, functionality has been added to open graphs in yEd directly from Python.  Note: ensure you have installed yEd application from [here](https://www.yworks.com/products/yed/download#download) and that the app is on PATH (Win: "where yed.exe" in CMD should output a path).
 
 ```python
-# From existing handle
+# Instantiating Graph
+graph = Graph()
+
+# Saving graph to file
+graph_file = graph.persist_graph()
+
+# Opening graph in yEd from file handle
 graph_file.open_with_yed(force=True)
 
-# From file path
+# Opening graph directly from file
 yed.open_yed_file("examples/test.graphml")
 ```
 
