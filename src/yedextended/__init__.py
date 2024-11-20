@@ -27,6 +27,7 @@ from warnings import warn
 from xml.dom import minidom
 
 import openpyxl as pyxl
+import pandas as pd
 import psutil
 
 # Enumerated parameters / Constants
@@ -92,13 +93,13 @@ def checkValue(
 
 
 class File:
-    """Object to check and act on yEd files / filepaths (or excel files, .xlsx,  during bulk data management)."""
+    """Object to check and act on (primarily yEd) files / filepaths."""
 
-    def __init__(self, file_name_or_path=None):
+    def __init__(self, file_name_or_path=None, extension=""):
         self.DEFAULT_FILE_NAME = "temp"
-        self.EXTENSION = ".graphml"
+        self.EXTENSION: str
         self.dir = self.path_validate(file_name_or_path)
-        self.basename = self.base_name_validate(file_name_or_path)
+        self.basename = self.base_name_validate(file_name_or_path, extension)
         self.fullpath = os.path.join(self.dir, self.basename)
         self.window_search_name = self.basename + " - yEd"
         self.file_exists = os.path.isfile(self.fullpath)
@@ -115,20 +116,47 @@ class File:
                 path = os.getcwd()
         return os.path.realpath(path)
 
-    def base_name_validate(self, temp_name_or_path=None):
-        """Validate / Build valid file name with GraphML extension (also works with excel files identified with xlsx)"""
+    def base_name_validate(self, temp_name_or_path, extension):
+        """Validate / Build valid file name with extension"""
         temp_name = ""
         if temp_name_or_path:
             temp_name = os.path.basename(temp_name_or_path)
+
+        # if no file name - give file name
         temp_name = temp_name or f"{self.DEFAULT_FILE_NAME}"
-        if not temp_name.endswith(self.EXTENSION) and not temp_name.endswith(".xlsx"):
+
+        # check for extension
+        name, extension_from_name = os.path.splitext(temp_name)  # break up name into name + ext
+        has_extension_assigned = any(extension_from_name)
+        extension_received_from_function = any(extension)
+
+        # if extension - update file object with Extension
+        if has_extension_assigned:
+            self.EXTENSION = extension_from_name
+
+        # if no extension - assign extension from function and update file object
+        elif not has_extension_assigned and extension_received_from_function:
+            self.EXTENSION = extension
             temp_name += self.EXTENSION
-        return temp_name
+
+        # if no extensions in name or from function - assign default file extension and update file object
+        elif not has_extension_assigned and not extension_received_from_function:
+            self.EXTENSION = ".graphml"  # default file extension
+            temp_name += self.EXTENSION
+
+        return temp_name  # give back name+ext combo
 
     def open_with_yed(self, force=False):
         """Method to open GraphML file directly with yEd application (must be installed and on path)."""
+
+        # Ensure a valid yed extension file
+        if self.EXTENSION != ".graphml":
+            raise RuntimeWarning("Trying to open non-graphml file with yEd.")
+
         print("opening file with yed...")
+
         open_yed_file(self, force)
+
         return get_yed_pid()
 
 
@@ -978,6 +1006,14 @@ class GraphStats:
         """Find object by user assigned name - needs to provide for multiple (needs deduplication)."""
         return name in self.duplicate_names
 
+    def print_stats(self):
+        print(f"Graph Stats of {self.graph.id}")
+        for k, v in vars(self).items():
+            if isinstance(v, Graph):
+                continue
+            else:
+                print(f"\tStat: {k} : {len(v)}")
+
 
 class ExcelManager:
     """Object to handle interfacing of graphs with Excel in bulk data management operations."""
@@ -985,7 +1021,7 @@ class ExcelManager:
     def __init__(self):
         # Template operations ==============
         self.WB_TYPES = ["obj_and_hierarchy", "object_data", "relations"]
-        self.TEMP_EXCEL_SHEET = File("yedextended_temp.xlsx").fullpath
+        self.TEMP_EXCEL_WORKBOOK = File("yedextended_temp.xlsx").fullpath
         self.OBJECTS_WS_NAME = "Objects_and_Groups"
         self.RELATIONS_WS_NAME = "Relations"
         self.DISAMBIGUATING_SEPARATOR = "##ID:##"
@@ -1014,8 +1050,8 @@ class ExcelManager:
 
         self.bulk_data_op_verify(type)
 
-        if os.path.isfile(self.TEMP_EXCEL_SHEET):
-            os.remove(self.TEMP_EXCEL_SHEET)
+        if os.path.isfile(self.TEMP_EXCEL_WORKBOOK):
+            os.remove(self.TEMP_EXCEL_WORKBOOK)
 
         # create workbook
         excel_wb = pyxl.Workbook()
@@ -1046,7 +1082,7 @@ class ExcelManager:
         if excel_ws:
             excel_wb.remove(excel_ws)  # removing default sheet
         self.kill_excel()
-        excel_wb.save(self.TEMP_EXCEL_SHEET)
+        excel_wb.save(self.TEMP_EXCEL_WORKBOOK)
         excel_wb.close()
 
     def open_close_excel(*args, **kwargs):
@@ -1064,7 +1100,7 @@ class ExcelManager:
                 if save:
                     self.create_excel_template(type)
                     sleep(0.5)  # FIXME: Unclear if necessary
-                    with open(self.TEMP_EXCEL_SHEET, "rb") as f:
+                    with open(self.TEMP_EXCEL_WORKBOOK, "rb") as f:
                         in_mem_file = io.BytesIO(f.read())
 
                 # Excel to graph
@@ -1080,7 +1116,7 @@ class ExcelManager:
                     else:
                         # It is assumed that the template is already created and filled during graph_to_excel at this point
                         # Lets pull a version into memory
-                        with open(self.TEMP_EXCEL_SHEET, "rb") as f:
+                        with open(self.TEMP_EXCEL_WORKBOOK, "rb") as f:
                             in_mem_file = io.BytesIO(f.read())
 
                 # If nothing in memory at this point we have an issue
@@ -1098,7 +1134,7 @@ class ExcelManager:
 
                 # Clean up
                 if save:
-                    self.excel_wb.save(self.TEMP_EXCEL_SHEET)
+                    self.excel_wb.save(self.TEMP_EXCEL_WORKBOOK)
                 self.kill_excel()
 
             return wrapper_func
@@ -1150,13 +1186,15 @@ class ExcelManager:
             sub_nodes = input_node.nodes
             sub_groups = input_node.groups
 
+            no_sub_items = not any([sub_nodes, sub_groups])
+
             for node in sub_nodes.values():
                 # desc = node.get(description, "")
                 # url = node.get(url, "")
 
                 # posting to excel
-                self.objects_ws.cell(row=row, column=indent_level, value=node.name)
-                self.objects_ws.cell(row=row, column=indent_level + 1, value=node.id)
+                self.objects_ws.cell(row=row, column=indent_level, value=str(node.name))
+                self.objects_ws.cell(row=row, column=indent_level + 1, value=str(node.id))
                 row += 1
 
             for group in sub_groups.values():
@@ -1164,12 +1202,18 @@ class ExcelManager:
                 # label = getattr(group, "label", "")
 
                 # posting to excel
-                self.objects_ws.cell(row=row, column=indent_level, value=group.name)
-                self.objects_ws.cell(row=row, column=indent_level + 1, value=group.id)
+                self.objects_ws.cell(row=row, column=indent_level, value=str(group.name))
+                self.objects_ws.cell(row=row, column=indent_level + 1, value=str(group.id))
                 row += 1
 
                 # Recursive extraction - adapting indent
                 graph_object_extract_to_excel(self, group, indent_level=indent_level + 1)
+
+            # Hacky workaround for tabulated ownership structure
+            #     Add empty node under group
+            if isinstance(input_node, Group) and no_sub_items:
+                self.objects_ws.cell(row=row, column=indent_level, value="empty_group_Node")
+                row += 1
 
         def relations_extract_to_excel(self, input_node: Union[Group, Graph]):
             """Extract relations recursively - providing owner if needed"""
@@ -1225,31 +1269,46 @@ class ExcelManager:
 
             # identifying indents in excel (marker for groupings)
             indent: list[int] = []
-            for row in obj_data:
-                none_i = 0
-                for val in row:
-                    if val == None:
-                        none_i += 1
-                    else:
-                        break  # per row for
-                indent.append(none_i)
+            for row_count, row in enumerate(obj_data):
+                number_empty_cells = 0
+                if row_count == 0:
+                    pass  # just log 0
+                else:
+                    for val in row:
+                        # if the cell is empty - increase count
+                        if val == None or val == "":
+                            number_empty_cells += 1
+                        else:
+                            break  # done incrementing - time to record
+                indent.append(number_empty_cells)
 
             # identifying groups
             num_items = len(obj_data)
-            group_identifiers = list(map(lambda x: 1 if indent[x + 1] > indent[x] else 0, range(0, num_items - 1)))
+            group_identifiers = list(
+                map(lambda x: 1 if indent[x + 1] > indent[x] else 0, range(0, num_items - 1))
+            )  # FIXME: WOULD FAIL ON A GROUP WITHOUT NAME
             group_identifiers.append(0)  # small limitation - deepest or last cannot be group - must have submembers
 
-            # sorting ownership based on indents/groups
+            # sorting ownership based on indents/groups - also correcting indents if name = ""
             owner_indexing: dict[int, Union[int, None]] = dict()
-            indent_and_group_ident = list(zip(indent, group_identifiers))
+            indent_and_group_ident = zip(indent, group_identifiers)
+            indent_and_group_ident = [list(row) for row in indent_and_group_ident]
             for i in range(0, num_items):
-                owner_indexing[i] = None
+                owner_indexing[i] = None  # default value - no object owner - graph owner
+
+                # first item has no object owner - graph owner
                 if i == 0:
                     continue
+
                 curr_indent = indent[i]
                 for j, (indent_i, is_group) in enumerate(reversed(indent_and_group_ident[:i])):
-                    if indent_i == curr_indent - 1 and is_group == 1:
+                    # if indent_i == curr_indent - 1 and is_group == 1: # going only on 1 tab indent (no support for empty name)
+                    if (
+                        indent_i < curr_indent and is_group == 1
+                    ):  # just going based on less indent (special case - empty name leads to extra indent)
                         owner_indexing[i] = i - (j + 1)
+                        indent_and_group_ident[i][0] = indent_i + 1
+                        indent[i] = indent_i + 1
                         break
 
             # Building / Modifying objects
@@ -1260,7 +1319,9 @@ class ExcelManager:
             # all_curr_obj_ids = set(self.original_id_to_obj.keys())
             for i, (starting_indent, gr_i, obj_row) in enumerate(zip(indent, group_identifiers, obj_data)):
                 # Extracting label and id
-                name = obj_row[starting_indent]
+                name = str(
+                    obj_row[starting_indent] or ""
+                )  # assumes name is given and we need to convert to string for some items
                 id = None
                 try:
                     id = obj_row[starting_indent + 1]
@@ -1279,6 +1340,11 @@ class ExcelManager:
                     owner_object = objects[owner_index]
                 else:
                     owner_object = self.graph
+
+                # Early exit for group identifying nodes (hacky workaround)
+                if name == "empty_group_Node":
+                    objects.append(None)
+                    continue
 
                 # This is a new object - create it
                 if not id_found:
@@ -1353,6 +1419,7 @@ class ExcelManager:
                             objects.append(mod_node)
                             object_id_mappings[id] = mod_node.id
 
+                    # no changes to object (so wont need to be deleted)
                     else:
                         objects.append(existing_obj)
 
@@ -1364,7 +1431,7 @@ class ExcelManager:
             # Finding difference of ids - previous ids no longer there... #FIXME: WHAT ABOUT CHANGED IDS?
             all_updated_obj = objects.copy()
             all_orig_obj = list(self.original_stats.all_objects.values())
-            all_deleted_obj = [obj for obj in all_orig_obj if obj not in all_updated_obj]
+            all_deleted_obj = [obj for obj in all_orig_obj if obj not in all_updated_obj and obj is not None]
             for obj in all_deleted_obj:
                 parent = obj.parent or self.graph
                 if isinstance(obj, Group):  # group
@@ -1372,16 +1439,17 @@ class ExcelManager:
                     try:
                         parent.remove_group(obj, heal=False)
                     except Exception as e:
-                        warn("Group no longer existing - to remove")
+                        warn(f"Group {obj.name} no longer existing - to remove")
                 elif isinstance(obj, Node):  # node
                     try:
                         parent.remove_node(obj)
                     except Exception as e:
-                        warn("Node no longer existing - to remove")
+                        warn(f"Node {obj.name} no longer existing - to remove")
 
             # Update all ids - after delete operations
             for obj in objects:
-                assign_traceable_id(obj)
+                if obj:
+                    assign_traceable_id(obj)
 
         elif self.type == "relations":
             # Access the relations sheet
@@ -1551,7 +1619,7 @@ class ExcelManager:
         self.kill_excel()
 
         if show_guis:
-            os.startfile(self.TEMP_EXCEL_SHEET)
+            os.startfile(self.TEMP_EXCEL_WORKBOOK)
 
             user_response = msg.askokcancel(
                 title="yEd Bulk Data Management - Async", message="To process changes, save workbook and press ok."
@@ -1704,23 +1772,23 @@ class Graph:
         for node in self.nodes.values():
             graph.append(node.convert_to_xml())
 
-        for node in self.groups.values():
-            graph.append(node.convert_to_xml())
+        for group in self.groups.values():
+            graph.append(group.convert_to_xml())
 
         for edge in self.edges.values():
             graph.append(edge.convert_to_xml())
 
         self.graphml = graphml
 
-    def persist_graph(self, file=None, pretty_print=False, overwrite=False) -> File:
+    def persist_graph(self, file=None, pretty_print=False, overwrite=False, vcs_version=False) -> File:
         """Convert graphml object->xml tree->graphml file.
         Temporary naming used if not given.
         """
 
-        graph_file = File(file)
+        graph_file = File(file, extension=".graphml")
 
         if graph_file.file_exists and not overwrite:
-            raise FileExistsError
+            raise FileExistsError(f"File already exists: {graph_file.fullpath}")
 
         self.construct_graphml()
 
@@ -1733,8 +1801,33 @@ class Graph:
             tree = ET.ElementTree(self.graphml)
             tree.write(graph_file.fullpath)  # Uses internal method to XML Etree
 
-        # recheck the file as existing or not
+        # Save simplified version for ease of vcs reviewability
+        if vcs_version:
+            # Extract file name / path information
+            graph_file_name, _ = os.path.splitext(graph_file.fullpath)
+            path = os.path.dirname(graph_file.fullpath)
+
+            # Convert graph to excel =================
+            new_excel = ExcelManager()
+            new_excel.graph_to_excel_conversion(type="relations", graph=self)
+
+            # Convert to csv version =================
+
+            # read into pandas excelfile
+            xlsx = pd.ExcelFile(new_excel.TEMP_EXCEL_WORKBOOK)
+
+            # Iterate through each sheet in the Excel file and save to csv
+            for sheet_name in xlsx.sheet_names:
+                # Read the sheet into a DataFrame
+                df = pd.read_excel(xlsx, sheet_name)
+
+                # Export the DataFrame to a CSV file
+                csv_path = os.path.join(path, graph_file_name + "-" + str(sheet_name) + ".csv")
+                df.to_csv(csv_path, index=False)
+
+        # Update the file as existing or not
         graph_file.full_path_validate()
+
         print("persisting graph to file:", graph_file.fullpath)
         return graph_file
 
@@ -1756,7 +1849,7 @@ class Graph:
         if isinstance(file, File):
             graph_file = file
         else:
-            graph_file = File(file)
+            graph_file = File(file, extension=".graphml")
         if not graph_file.file_exists:
             raise FileNotFoundError
 
@@ -2226,7 +2319,7 @@ def assign_traceable_id(obj) -> None:
                 parent_id_prefix + "e" + str(len(obj.parent.edges))
             )  # FIXME: HAS TO BE THE INDEX OF THIS ITEM IN THE LIST
 
-    print(obj.id)
+    # print(obj.id)
 
 
 def update_traceability(obj, owner, operation, heal=True) -> None:

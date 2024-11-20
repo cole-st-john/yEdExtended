@@ -816,7 +816,7 @@ class Test_Excel_Related_Functionalities:
         graph = Graph()
         excel.graph_to_excel_conversion(graph=graph)
         assert excel is not None
-        assert os.path.isfile(excel.TEMP_EXCEL_SHEET) is True, "Expected template created"
+        assert os.path.isfile(excel.TEMP_EXCEL_WORKBOOK) is True, "Expected template created"
 
     def test_graph_to_excel_conversion_obj(self):
         """
@@ -831,7 +831,7 @@ class Test_Excel_Related_Functionalities:
 
         in_mem_file1 = None
         in_mem_file2 = None
-        with open(excel1.TEMP_EXCEL_SHEET, "rb") as f:
+        with open(excel1.TEMP_EXCEL_WORKBOOK, "rb") as f:
             in_mem_file1 = io.BytesIO(f.read())
 
         with open("examples\\yed_test_to_excel1.xlsx", "rb") as f:
@@ -843,8 +843,8 @@ class Test_Excel_Related_Functionalities:
         reference_data = self.get_filtered_sheet_values(reference)
         assert current_data == reference_data
 
-        if os.path.exists(excel1.TEMP_EXCEL_SHEET):
-            os.remove(excel1.TEMP_EXCEL_SHEET)
+        if os.path.exists(excel1.TEMP_EXCEL_WORKBOOK):
+            os.remove(excel1.TEMP_EXCEL_WORKBOOK)
 
     def test_graph_to_excel_conversion_rel(self):
         """
@@ -859,7 +859,7 @@ class Test_Excel_Related_Functionalities:
 
         in_mem_file1 = None
         in_mem_file2 = None
-        with open(excel1.TEMP_EXCEL_SHEET, "rb") as f:
+        with open(excel1.TEMP_EXCEL_WORKBOOK, "rb") as f:
             in_mem_file1 = io.BytesIO(f.read())
 
         with open("examples\\yed_test_to_excel2.xlsx", "rb") as f:
@@ -871,8 +871,8 @@ class Test_Excel_Related_Functionalities:
         reference_data = self.get_filtered_sheet_values(reference)
         assert current_data == reference_data
 
-        if os.path.exists(excel1.TEMP_EXCEL_SHEET):
-            os.remove(excel1.TEMP_EXCEL_SHEET)
+        if os.path.exists(excel1.TEMP_EXCEL_WORKBOOK):
+            os.remove(excel1.TEMP_EXCEL_WORKBOOK)
 
     def test_bulk_data_management(self):
         """
@@ -906,8 +906,8 @@ class Test_Excel_Related_Functionalities:
         assert after_string is not None
         assert before_string == after_string
 
-        if os.path.exists(excel_obj.TEMP_EXCEL_SHEET):
-            os.remove(excel_obj.TEMP_EXCEL_SHEET)
+        if os.path.exists(excel_obj.TEMP_EXCEL_WORKBOOK):
+            os.remove(excel_obj.TEMP_EXCEL_WORKBOOK)
 
     def test_excel_to_graph(self):  # FIXME:
         """
