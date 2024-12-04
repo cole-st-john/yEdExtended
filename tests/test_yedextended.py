@@ -54,10 +54,10 @@ class Test_File:
         Given: File object
         When: given simple name w/ relative path (and cwd with that rel path)
         Then: returns same basename and working dir path"""
-        test_file_obj = File("examples\\abc.graphml")
+        test_file_obj = File("examples/abc.graphml")
         assert test_file_obj.basename == "abc.graphml"
         assert test_file_obj.window_search_name == "abc.graphml - yEd"
-        assert test_file_obj.fullpath.endswith("examples\\abc.graphml")
+        assert test_file_obj.fullpath.endswith("examples/abc.graphml")
         assert os.path.exists(test_file_obj.dir) is True
 
     def test_file_object_basics_4(self):
@@ -65,7 +65,7 @@ class Test_File:
         Given: File object
         When: given simple name and bad path
         Then: returns same basename and diff path"""
-        test_file_obj = File(r"c:\fakepath11\abc.graphml")
+        test_file_obj = File(r"c:/fakepath11/abc.graphml")
         assert test_file_obj.basename == "abc.graphml"
         assert test_file_obj.dir.lower() == os.getcwd().lower()
 
@@ -333,7 +333,7 @@ def test_xml_to_simple_string_1():
     Given: yEd utility
     When: valid file with items needing simplification
     Then: returns simplified string"""
-    test_string = yed.xml_to_simple_string("examples\\yed_created_edges.graphml")
+    test_string = yed.xml_to_simple_string("examples/yed_created_edges.graphml")
     assert test_string.find("\n") == -1
 
 
@@ -355,7 +355,7 @@ class Test_GraphStats:
         Given: existing graph of known stats
         When: gathering statistics
         Then: statistics as expected"""
-        test_graph = Graph().from_existing_graph("examples\\yed_created_edges.graphml")
+        test_graph = Graph().from_existing_graph("examples/yed_created_edges.graphml")
         results_stats = test_graph.gather_graph_stats()
 
         # Then: we can assume the following stats
@@ -371,7 +371,7 @@ class Test_GraphStats:
         When: gathering statistics
         Then: statistics as expected"""
 
-        test_graph = Graph().from_existing_graph("examples\\yed_created_empty_graph.graphml")
+        test_graph = Graph().from_existing_graph("examples/yed_created_empty_graph.graphml")
 
         # When: taking the stats
         results_stats = test_graph.gather_graph_stats()
@@ -540,7 +540,7 @@ def test_from_existing_graph_1():
     Given: use of from_existing_graph
     When: graph file is existing
     Then: return graph object expected"""
-    assert isinstance(Graph().from_existing_graph("examples\\yed_created_edges.graphml"), Graph)
+    assert isinstance(Graph().from_existing_graph("examples/yed_created_edges.graphml"), Graph)
 
 
 def test_from_existing_graph_2():
@@ -557,7 +557,7 @@ def test_from_existing_graph_3():
     Given: use of from_existing_graph with graph file is existing and simple graph
     When: graph stats used
     Then: expected information returned"""
-    test_graph = Graph().from_existing_graph("examples\\yed_created_edges.graphml")
+    test_graph = Graph().from_existing_graph("examples/yed_created_edges.graphml")
     test_graph_stats = test_graph.gather_graph_stats()
     assert test_graph_stats.all_nodes["n0"].url is not None
     assert len(test_graph_stats.all_graph_items) == 8
@@ -720,7 +720,7 @@ class Test_Yed_App_Functions:
         Then: findable and returns valid process object"""
 
         # Initialize the test File
-        test_graph = File("examples\\yed_created_edges.graphml")
+        test_graph = File("examples/yed_created_edges.graphml")
 
         # Assert that YED is findable
         assert yed.is_yed_findable() is True
@@ -739,7 +739,7 @@ class Test_Yed_App_Functions:
         Given: yEd is installed
         When: triggering open_with_yed with valid relative file path
         Then: file should be opened"""
-        test_file_obj = File("examples\\test.graphml")
+        test_file_obj = File("examples/test.graphml")
         process = test_file_obj.open_with_yed()
         assert process is not None, "Expected a process object, but got None"
 
@@ -785,7 +785,7 @@ class Test_Yed_App_Functions:
         Given: use of open_yed_file
         When: handed real graph file
         Then: return process object expected"""
-        graph_file = File("examples\\yed_created_edges.graphml")
+        graph_file = File("examples/yed_created_edges.graphml")
 
         process = yed.open_yed_file(graph_file)
         assert process is not None, "Expected a process object, but got None"
@@ -824,7 +824,7 @@ class Test_Excel_Related_Functionalities:
         When: graph_to_excel conversion is used
         Then: the object output should be as expected"""
 
-        graph1 = Graph().from_existing_graph("examples\\yed_created_edges.graphml")
+        graph1 = Graph().from_existing_graph("examples/yed_created_edges.graphml")
         # test conversion to excel
         excel1 = ExcelManager()
         excel1.graph_to_excel_conversion(graph=graph1)
@@ -834,7 +834,7 @@ class Test_Excel_Related_Functionalities:
         with open(excel1.TEMP_EXCEL_WORKBOOK, "rb") as f:
             in_mem_file1 = io.BytesIO(f.read())
 
-        with open("examples\\yed_test_to_excel1.xlsx", "rb") as f:
+        with open("examples/yed_test_to_excel1.xlsx", "rb") as f:
             in_mem_file2 = io.BytesIO(f.read())
 
         current = pyxl.load_workbook(in_mem_file1).active
@@ -852,7 +852,7 @@ class Test_Excel_Related_Functionalities:
         When: graph_to_excel conversion is used
         Then: the relation output should be as expected"""
 
-        graph1 = Graph().from_existing_graph("examples\\yed_created_edges.graphml")
+        graph1 = Graph().from_existing_graph("examples/yed_created_edges.graphml")
         # test conversion to excel
         excel1 = ExcelManager()
         excel1.graph_to_excel_conversion(graph=graph1, type="relations")
@@ -862,7 +862,7 @@ class Test_Excel_Related_Functionalities:
         with open(excel1.TEMP_EXCEL_WORKBOOK, "rb") as f:
             in_mem_file1 = io.BytesIO(f.read())
 
-        with open("examples\\yed_test_to_excel2.xlsx", "rb") as f:
+        with open("examples/yed_test_to_excel2.xlsx", "rb") as f:
             in_mem_file2 = io.BytesIO(f.read())
 
         current = pyxl.load_workbook(in_mem_file1)["Relations"]
@@ -927,7 +927,7 @@ class Test_Excel_Related_Functionalities:
 
         # test conversion to excel
         excel1 = ExcelManager()
-        data = "examples\\yed_test_to_excel3.xlsx"
+        data = "examples/yed_test_to_excel3.xlsx"
         excel1.excel_to_graph_conversion(type="obj_and_hierarchy", excel_data=data)
         excel1.excel_to_graph_conversion(type="relations", excel_data=data)
         reference_string = graph1.stringify_graph()
@@ -948,11 +948,11 @@ class Test_Excel_Related_Functionalities:
 
         # Get graph
         excel1 = ExcelManager()
-        data1 = "examples\\yed_test_to_excel4.xlsx"
+        data1 = "examples/yed_test_to_excel4.xlsx"
         excel1.excel_to_graph_conversion(type="obj_and_hierarchy", excel_data=data1)
         excel1.excel_to_graph_conversion(type="relations", excel_data=data1)
         print("")
-        data2 = "examples\\yed_test_to_excel4_mod1.xlsx"
+        data2 = "examples/yed_test_to_excel4_mod1.xlsx"
         excel1.excel_to_graph_conversion(type="obj_and_hierarchy", excel_data=data2)
         # excel1.excel_to_graph_conversion(type="relations", excel_data=data2)
         # print("h")
@@ -965,11 +965,11 @@ class Test_Excel_Related_Functionalities:
 
         # Get graph
         excel1 = ExcelManager()
-        data1 = "examples\\yed_test_to_excel4.xlsx"
+        data1 = "examples/yed_test_to_excel4.xlsx"
         excel1.excel_to_graph_conversion(type="obj_and_hierarchy", excel_data=data1)
         excel1.excel_to_graph_conversion(type="relations", excel_data=data1)
 
-        data2 = "examples\\yed_test_to_excel4_mod2.xlsx"
+        data2 = "examples/yed_test_to_excel4_mod2.xlsx"
         excel1.excel_to_graph_conversion(type="relations", excel_data=data2)
 
     def get_filtered_sheet_values(self, sheet):
