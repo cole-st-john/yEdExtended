@@ -2374,7 +2374,7 @@ def get_yed_process():
     """Return process object for yEd application, if there is one running."""
     process = None
     for process_iter in psutil.process_iter(["name"]):
-        if process_iter.info["name"] == PROGRAM_NAME:
+        if process_iter.info["name"].startswith( PROGRAM_NAME):
             process = process_iter
             break
     return process
