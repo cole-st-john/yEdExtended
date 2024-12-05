@@ -2,26 +2,28 @@
 
 * Building of yEd graph objects from scratch
 * Reading of yEd graph files
-* Management of yEd graph data in Excel
+* Management of yEd graph data in spreadsheet
 * Opening and basic control of yEd application
 
 """
 
 import io
 import os
-import platform
 import xml.etree.ElementTree as xml
 
 import openpyxl as pyxl
 import pytest
 
 import yedextended as yed
-from yedextended import ExcelManager, File, Graph, GraphStats, Node
+from yedextended import File, Graph, GraphStats, Node, SpreadsheetManager
 
 # Triggers around testing completion
 yed.testing = True
 yed.show_guis = False
-local_testing = os.environ.get("CI") == "True" and platform.platform().startswith("Windows")
+ci_system_check = os.environ.get("CI")
+local_testing = (
+    yed.app_platform.startswith(("Windows", "Linux")) and not ci_system_check == "True"
+)
 
 
 class Test_File:
@@ -371,7 +373,9 @@ class Test_GraphStats:
         When: gathering statistics
         Then: statistics as expected"""
 
-        test_graph = Graph().from_existing_graph("examples/yed_created_empty_graph.graphml")
+        test_graph = Graph().from_existing_graph(
+            "examples/yed_created_empty_graph.graphml"
+        )
 
         # When: taking the stats
         results_stats = test_graph.gather_graph_stats()
@@ -440,7 +444,9 @@ def test_custom_property_assignment():
     assert edge1.Population == "1", "Property not as expected"
     assert group1.Population == "2", "Property not as expected"
 
-    assert graph1.stringify_graph().find("Population") != -1, "Property not found in graphml"
+    assert (
+        graph1.stringify_graph().find("Population") != -1
+    ), "Property not found in graphml"
 
 
 def test_persist_graph_1():
@@ -540,7 +546,9 @@ def test_from_existing_graph_1():
     Given: use of from_existing_graph
     When: graph file is existing
     Then: return graph object expected"""
-    assert isinstance(Graph().from_existing_graph("examples/yed_created_edges.graphml"), Graph)
+    assert isinstance(
+        Graph().from_existing_graph("examples/yed_created_edges.graphml"), Graph
+    )
 
 
 def test_from_existing_graph_2():
@@ -709,8 +717,8 @@ class Test_Yed_App_Functions:
         When: starting yed
         Then: returns valid process object"""
         yed.kill_yed()
-        process = yed.start_yed()
-        assert process is not None, "Expected a process object, but got None"
+        yed.start_yed()
+        assert yed.get_yed_pid() is not None, "Expected a PID but got none"
         yed.kill_yed()
 
     def test_basic_findable_and_open_file(self):
@@ -726,10 +734,10 @@ class Test_Yed_App_Functions:
         assert yed.is_yed_findable() is True
 
         # Open the File asynchronously and await its completion - requires manual closure
-        process = test_graph.open_with_yed()
+        test_graph.open_with_yed()
 
         # Assert that the result is not None (after user closed yEd during test)
-        assert process is not None, "Expected a process object, but got None"
+        assert yed.get_yed_pid() is not None, "Expected a PID, but got None"
 
         # Kill the YED process
         yed.kill_yed()  # redundant
@@ -740,13 +748,13 @@ class Test_Yed_App_Functions:
         When: triggering open_with_yed with valid relative file path
         Then: file should be opened"""
         test_file_obj = File("examples/test.graphml")
-        process = test_file_obj.open_with_yed()
-        assert process is not None, "Expected a process object, but got None"
+        pid = test_file_obj.open_with_yed()
+        assert pid is not None, "Expected a PID, but got None"
 
         # clean up
         yed.kill_yed()
 
-    def test_yed_kill(self):
+    def test_yed_kill_then_check1(self):
         """
         Given: yEd is installed
         When: yEd started and triggering yed kill
@@ -754,31 +762,45 @@ class Test_Yed_App_Functions:
 
         # kill any yEd
         yed.kill_yed()
-
         # check for yed running
         assert yed.is_yed_open() is False
 
+    def test_yed_open_then_check1(self):
+        """
+        Given: yEd is installed
+        When: yEd started and triggering yed kill
+        Then: yEd closed / no longer running"""
         # start yEd
         yed.start_yed()
+        import time
+
         assert yed.is_yed_open() is True
 
+    def test_yed_kill_then_check2(self):
+        """
+        Given: yEd is installed
+        When: yEd started and triggering yed kill
+        Then: yEd closed / no longer running"""
+
+        # start yEd
+        yed.start_yed()
         yed.kill_yed()
+
         assert yed.is_yed_open() is False
 
-        process = yed.start_yed()
-        assert process is not None
+    def test_yed_kill_then_check3(self):
 
-        process = yed.start_yed()  # duplicate start
-        assert process is None
+        yed.start_yed()
+        assert yed.get_yed_pid() is not None
 
-    def test_yed_start_extended(self):
+    def test_yed_start_w_manual_close_wait(self):
         """
         Given: start_yed is used
         When: when wait is true
         Then: return process should be none (it is already closed)"""
         yed.kill_yed()
-        process = yed.start_yed(wait=True)
-        assert process is None
+        yed.start_yed(wait=True)
+        assert yed.get_yed_pid() is None, "Expected yEd PID, but got None"
 
     def test_open_yed_file(self):
         """
@@ -787,54 +809,59 @@ class Test_Yed_App_Functions:
         Then: return process object expected"""
         graph_file = File("examples/yed_created_edges.graphml")
 
-        process = yed.open_yed_file(graph_file)
-        assert process is not None, "Expected a process object, but got None"
+        yed.open_yed_file(graph_file)
+        assert yed.get_yed_pid() is not None, "Expected an active PID, but got None"
         yed.kill_yed()
 
-        process = yed.open_yed_file(graph_file, force=True)
-        assert process is not None, "Expected a process object, but got None"
+        yed.open_yed_file(graph_file, force=True)
+        assert yed.get_yed_pid() is not None, "Expected an active PID, but got None"
         yed.kill_yed()
 
         graph_file = File("not_real_file.graphml")
-        process = yed.open_yed_file(graph_file)
-        assert process is None, "Should not have successfully spawned a process"
+        yed.open_yed_file(graph_file)
+        assert (
+            yed.get_yed_pid() is None
+        ), "Expected no yEd process should be open - instead one is open."
 
 
 @pytest.mark.skipif(
     local_testing is not True,
     reason="Tests not suitable for CI / Non-windows environments at this time",
 )
-class Test_Excel_Related_Functionalities:
-    """Test all MS excel based functionality - assumes MS installed (not likely on test server)"""
+class Test_Spreadsheet_Related_Functionalities:
+    """Test all spreadsheet based functionality - assumes spreadsheet app"""
 
     def test_init(self):
         """
         Given: empty graph
-        When: graph_to_excel is used
-        Then: it is expected that a template file is created and empty (except for headers)"""
-        excel = ExcelManager()
+        When: graph_to_spreadsheet is used
+        Then: it is expected that a template file is created and empty (except for headers)
+        """
+        spreadsheet = SpreadsheetManager()
         graph = Graph()
-        excel.graph_to_excel_conversion(graph=graph)
-        assert excel is not None
-        assert os.path.isfile(excel.TEMP_EXCEL_WORKBOOK) is True, "Expected template created"
+        spreadsheet.graph_to_spreadsheet_conversion(graph=graph)
+        assert spreadsheet is not None
+        assert (
+            os.path.isfile(spreadsheet.TEMP_XLSX_WORKBOOK) is True
+        ), "Expected template created"
 
-    def test_graph_to_excel_conversion_obj(self):
+    def test_graph_to_spreadsheet_conversion_obj(self):
         """
         Given: simple graph instance from existing graphml
-        When: graph_to_excel conversion is used
+        When: graph_to_spreadsheet conversion is used
         Then: the object output should be as expected"""
 
         graph1 = Graph().from_existing_graph("examples/yed_created_edges.graphml")
-        # test conversion to excel
-        excel1 = ExcelManager()
-        excel1.graph_to_excel_conversion(graph=graph1)
+        # test conversion to spreadsheet
+        spreadsheet1 = SpreadsheetManager()
+        spreadsheet1.graph_to_spreadsheet_conversion(graph=graph1)
 
         in_mem_file1 = None
         in_mem_file2 = None
-        with open(excel1.TEMP_EXCEL_WORKBOOK, "rb") as f:
+        with open(spreadsheet1.TEMP_XLSX_WORKBOOK, "rb") as f:
             in_mem_file1 = io.BytesIO(f.read())
 
-        with open("examples/yed_test_to_excel1.xlsx", "rb") as f:
+        with open("examples/yed_test_to_spreadsheet1.xlsx", "rb") as f:
             in_mem_file2 = io.BytesIO(f.read())
 
         current = pyxl.load_workbook(in_mem_file1).active
@@ -843,26 +870,26 @@ class Test_Excel_Related_Functionalities:
         reference_data = self.get_filtered_sheet_values(reference)
         assert current_data == reference_data
 
-        if os.path.exists(excel1.TEMP_EXCEL_WORKBOOK):
-            os.remove(excel1.TEMP_EXCEL_WORKBOOK)
+        if os.path.exists(spreadsheet1.TEMP_XLSX_WORKBOOK):
+            os.remove(spreadsheet1.TEMP_XLSX_WORKBOOK)
 
-    def test_graph_to_excel_conversion_rel(self):
+    def test_graph_to_spreadsheet_conversion_rel(self):
         """
         Given: simple graph instance from existing graphml
-        When: graph_to_excel conversion is used
+        When: graph_to_spreadsheet conversion is used
         Then: the relation output should be as expected"""
 
         graph1 = Graph().from_existing_graph("examples/yed_created_edges.graphml")
-        # test conversion to excel
-        excel1 = ExcelManager()
-        excel1.graph_to_excel_conversion(graph=graph1, type="relations")
+        # test conversion to spreadsheet
+        spreadsheet1 = SpreadsheetManager()
+        spreadsheet1.graph_to_spreadsheet_conversion(graph=graph1, type="relations")
 
         in_mem_file1 = None
         in_mem_file2 = None
-        with open(excel1.TEMP_EXCEL_WORKBOOK, "rb") as f:
+        with open(spreadsheet1.TEMP_XLSX_WORKBOOK, "rb") as f:
             in_mem_file1 = io.BytesIO(f.read())
 
-        with open("examples/yed_test_to_excel2.xlsx", "rb") as f:
+        with open("examples/yed_test_to_spreadsheet2.xlsx", "rb") as f:
             in_mem_file2 = io.BytesIO(f.read())
 
         current = pyxl.load_workbook(in_mem_file1)["Relations"]
@@ -871,8 +898,8 @@ class Test_Excel_Related_Functionalities:
         reference_data = self.get_filtered_sheet_values(reference)
         assert current_data == reference_data
 
-        if os.path.exists(excel1.TEMP_EXCEL_WORKBOOK):
-            os.remove(excel1.TEMP_EXCEL_WORKBOOK)
+        if os.path.exists(spreadsheet1.TEMP_XLSX_WORKBOOK):
+            os.remove(spreadsheet1.TEMP_XLSX_WORKBOOK)
 
     def test_bulk_data_management(self):
         """
@@ -897,8 +924,8 @@ class Test_Excel_Related_Functionalities:
         # shallow copy the stringified graph
         before_string = graph1.stringify_graph()[:]
 
-        # doing nothing in excel should lead to the same graph being built back up (when talking about simple obj model)
-        excel_obj = graph1.manage_graph_data_in_excel()
+        # doing nothing in spreadsheet should lead to the same graph being built back up (when talking about simple obj model)
+        spreadsheet_obj = graph1.manage_graph_data_in_spreadsheet()
 
         after_string = graph1.stringify_graph()
 
@@ -906,14 +933,15 @@ class Test_Excel_Related_Functionalities:
         assert after_string is not None
         assert before_string == after_string
 
-        if os.path.exists(excel_obj.TEMP_EXCEL_WORKBOOK):
-            os.remove(excel_obj.TEMP_EXCEL_WORKBOOK)
+        if os.path.exists(spreadsheet_obj.TEMP_XLSX_WORKBOOK):
+            os.remove(spreadsheet_obj.TEMP_XLSX_WORKBOOK)
 
-    def test_excel_to_graph(self):  # FIXME:
+    def test_spreadsheet_to_graph(self):  # FIXME:
         """
         Given: simple graph instance (hardcoded)
-        When: excel_to_graph is used as expected
-        Then: the resulting graph from the template excel (produced with the graph_to_excel)"""
+        When: spreadsheet_to_graph is used as expected
+        Then: the resulting graph from the template spreadsheet (produced with the graph_to_spreadsheet)
+        """
         # Create Graph
         graph1 = yed.Graph()
         n2 = graph1.add_node("Ivrea")
@@ -925,16 +953,20 @@ class Test_Excel_Related_Functionalities:
         graph1.add_edge(n1, n2)
         graph1.add_edge(n1, n3)
 
-        # test conversion to excel
-        excel1 = ExcelManager()
-        data = "examples/yed_test_to_excel3.xlsx"
-        excel1.excel_to_graph_conversion(type="obj_and_hierarchy", excel_data=data)
-        excel1.excel_to_graph_conversion(type="relations", excel_data=data)
+        # test conversion to spreadsheet
+        spreadsheet1 = SpreadsheetManager()
+        data = "examples/yed_test_to_spreadsheet3.xlsx"
+        spreadsheet1.spreadsheet_to_graph_conversion(
+            type="obj_and_hierarchy", spreadsheet_data=data
+        )
+        spreadsheet1.spreadsheet_to_graph_conversion(
+            type="relations", spreadsheet_data=data
+        )
         reference_string = graph1.stringify_graph()
-        return_string = excel1.graph.stringify_graph()
+        return_string = spreadsheet1.graph.stringify_graph()
         assert reference_string == return_string
 
-    def test_excel_round_trip_change_1(self):
+    def test_spreadsheet_round_trip_change_1(self):
         """
         Given: simple graph instance from existing graphml
         When: round trip  conversion is mocked - but with changes to existing
@@ -947,33 +979,45 @@ class Test_Excel_Related_Functionalities:
         #  (brescia ..): ownership northern -> graph
 
         # Get graph
-        excel1 = ExcelManager()
-        data1 = "examples/yed_test_to_excel4.xlsx"
-        excel1.excel_to_graph_conversion(type="obj_and_hierarchy", excel_data=data1)
-        excel1.excel_to_graph_conversion(type="relations", excel_data=data1)
+        spreadsheet1 = SpreadsheetManager()
+        data1 = "examples/yed_test_to_spreadsheet4.xlsx"
+        spreadsheet1.spreadsheet_to_graph_conversion(
+            type="obj_and_hierarchy", spreadsheet_data=data1
+        )
+        spreadsheet1.spreadsheet_to_graph_conversion(
+            type="relations", spreadsheet_data=data1
+        )
         print("")
-        data2 = "examples/yed_test_to_excel4_mod1.xlsx"
-        excel1.excel_to_graph_conversion(type="obj_and_hierarchy", excel_data=data2)
-        # excel1.excel_to_graph_conversion(type="relations", excel_data=data2)
+        data2 = "examples/yed_test_to_spreadsheet4_mod1.xlsx"
+        spreadsheet1.spreadsheet_to_graph_conversion(
+            type="obj_and_hierarchy", spreadsheet_data=data2
+        )
+        # spreadsheet1.spreadsheet_to_graph_conversion(type="relations", spreadsheet_data=data2)
         # print("h")
 
-    def test_excel_round_trip_change_2(self):
+    def test_spreadsheet_round_trip_change_2(self):
         """
         Given: simple graph instance from existing graphml
         When: some changes are made to edges
         Then: the object output should be as expected"""
 
         # Get graph
-        excel1 = ExcelManager()
-        data1 = "examples/yed_test_to_excel4.xlsx"
-        excel1.excel_to_graph_conversion(type="obj_and_hierarchy", excel_data=data1)
-        excel1.excel_to_graph_conversion(type="relations", excel_data=data1)
+        spreadsheet1 = SpreadsheetManager()
+        data1 = "examples/yed_test_to_spreadsheet4.xlsx"
+        spreadsheet1.spreadsheet_to_graph_conversion(
+            type="obj_and_hierarchy", spreadsheet_data=data1
+        )
+        spreadsheet1.spreadsheet_to_graph_conversion(
+            type="relations", spreadsheet_data=data1
+        )
 
-        data2 = "examples/yed_test_to_excel4_mod2.xlsx"
-        excel1.excel_to_graph_conversion(type="relations", excel_data=data2)
+        data2 = "examples/yed_test_to_spreadsheet4_mod2.xlsx"
+        spreadsheet1.spreadsheet_to_graph_conversion(
+            type="relations", spreadsheet_data=data2
+        )
 
     def get_filtered_sheet_values(self, sheet):
-        """test helper function - Filter empty columns from excel data for test comparison"""
+        """test helper function - Filter empty columns from spreadsheet data for test comparison"""
         data = []
         for row in sheet.iter_rows(values_only=True):
             # Filter out empty columns
@@ -1038,7 +1082,9 @@ def test_edge_with_custom_props_2():
 
     graph.define_custom_property("node", "Population", "int", "0")
     graph.define_custom_property("node", "Unemployment", "double", "0.0")
-    graph.define_custom_property("node", "Environmental Engagements", "boolean", "false")
+    graph.define_custom_property(
+        "node", "Environmental Engagements", "boolean", "false"
+    )
     graph.define_custom_property("node", "Mayor", "string", "")
     graph.define_custom_property("node", "Country", "string", "")
 

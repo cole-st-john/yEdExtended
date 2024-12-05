@@ -15,7 +15,7 @@ This Python library extends the functionality of the readily available and free 
 - [x] creating graphs
 - [x] formatting graphs
 - [x] reading graphs
-- [x] bulk data addition or management (MS excel-based)
+- [x] bulk data addition or management (spreadsheet-based)
 - [x] management of the yEd application (starting, killing, etc.)
 - [ ] enforcing rules on graphs
 - [ ] additional layout methods
@@ -78,8 +78,11 @@ group1.add_edge("c", "d")
 
 Programmatic Example:
 ```python
+# Instantiate graph instance
+graph1 = yed.Graph()
+
 # Adding graph objects based on csv input
-with open("examples\\test.csv", encoding="utf-8-sig") as csv_file:
+with open("examples/test.csv", encoding="utf-8-sig") as csv_file:
     csv_reader = csv.reader(csv_file)
     for row in csv_reader:
         graph1.add_node(row[0])
@@ -134,36 +137,36 @@ graph1.add_edge(
 ```
 
 
-## Manipulating data in MS Excel 
+## Manipulating data per Spreadsheet App (e.g. MS Excel)
 
-Sometimes, it is practical to mass edit or enter data in an interactive way.  yEdExtended includes functionality to enter basic to complex data and relationships using an interface to MS Excel interface. Note: to use this functionality, MS Excel must be installed and on path:
+Sometimes, it is practical to mass edit or enter data in an interactive way.  yEdExtended includes functionality to enter basic to complex data and relationships using an interface to spreadsheet app interface. Note: to use this functionality, a spreadsheet app must be installed and on path:
 
 ```python
 # Instantiate a graph
 graph1 = Graph()
 
-# Manage data in excel (add/remove/modify objects)
-graph1.manage_graph_data_in_excel() # default is object and hierachy management
+# Manage data in spreadsheet (add/remove/modify objects)
+graph1.manage_graph_data_in_spreadsheet() # default is object and hierachy management
 
-# Manage data in excel (add/remove/modify relations)
-graph1.manage_graph_data_in_excel(type="relations")
+# Manage data in spreadsheet (add/remove/modify relations)
+graph1.manage_graph_data_in_spreadsheet(type="relations")
 ```
 
-### Excel - Adding Objects / Groups:
+### spreadsheet - Adding Objects / Groups:
 
-![Excel Object Entry](https://raw.githubusercontent.com/cole-st-john/yedextended/master/images/excel_obj_entry.gif)
-
-### Result:
-
-![Graph result of excel data entry](https://raw.githubusercontent.com/cole-st-john/yedextended/master/images/graph_from_excel_obj.gif)
-
-### Excel - Adding Relationships:
-
-![Excel Relation Entry](https://raw.githubusercontent.com/cole-st-john/yedextended/master/images/excel_rel_entry.gif)
+![Spreadsheet Object Entry](https://raw.githubusercontent.com/cole-st-john/yedextended/master/images/excel_obj_entry.gif)
 
 ### Result:
 
-![Graph result of excel relation entry](https://raw.githubusercontent.com/cole-st-john/yedextended/master/images/graph_from_excel_rel.gif)
+![Graph result of spreadsheet data entry](https://raw.githubusercontent.com/cole-st-john/yedextended/master/images/graph_from_excel_obj.gif)
+
+### Spreadsheet - Adding Relationships:
+
+![Spreadsheet Relation Entry](https://raw.githubusercontent.com/cole-st-john/yedextended/master/images/excel_rel_entry.gif)
+
+### Result:
+
+![Graph result of Spreadsheet relation entry](https://raw.githubusercontent.com/cole-st-john/yedextended/master/images/graph_from_excel_rel.gif)
 
 
 ## Possible outputs of Graph
@@ -240,25 +243,34 @@ Interested in contributing or co-managing further development?  Just reach out!
 
 Dev. Requirements:
 
-Install yEd from [here](https://www.yworks.com/products/yed/download#download).
+- Install yEd from [here](https://www.yworks.com/products/yed/download#download).
 
-Ensure you have [MS Excel](https://www.microsoft.com/en/microsoft-365/excel?market=af) installed.
+- Ensure you have a spreadsheet app installed:
 
-```console
-$ pip install pytest
-```
+  - [MS Excel](https://www.microsoft.com/en/microsoft-365/excel?market=af)
+  - [LibreOffice](https://www.libreoffice.org/)
 
-```console
-$ setx CI "True"
-```
+- Install required package dependencies (per one of these methods):
+
+	- pip:
+		```console
+		$ pip install -r dev-requirements.txt
+		```
+	-- OR --
+	- uv:
+    	- Install [UV](https://docs.astral.sh/uv/getting-started/installation/)
+    	- Run uv sync in the repository:
+    	```console
+    	$ uv sync 
+    	```
 
 To run the tests:
+
 ```console
-$ PYTHONPATH=. pytest tests
+$ uv run pytest -v .
 ```
 
 References: 
 
 + [pyyed](https://github.com/jamesscottbrown/pyyed)
-+ [GraphML Primer](http://graphml.graphdrawingraph1.org/primer/graphml-primer.html)
-+ [NetworkX](https://github.com/networkx/networkx)
+

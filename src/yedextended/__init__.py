@@ -3,7 +3,7 @@
 Currently supports...
 * Building of yEd graph objects from scratch
 * Reading of yEd graph files
-* Management of yEd graph data in Excel (for simplified addition / management of data)
+* Management of yEd graph data in Spreadsheet (for simplified addition / management of data)
 * Opening and basic control of yEd application
 
 """
@@ -31,7 +31,8 @@ import pandas as pd
 import psutil
 
 # Enumerated parameters / Constants
-PROGRAM_NAME = "yEd.exe"
+app_platform = platform.platform().split("-")[0]
+PROGRAM_NAME = "yEd"
 
 # Testing related triggers
 testing = False
@@ -89,7 +90,9 @@ def checkValue(
 
     if validValues:
         if value not in validValues:
-            raise ValueError(f"{parameter_name} '{value}' is not supported. Use: '{', '.join(validValues)}'")
+            raise ValueError(
+                f"{parameter_name} '{value}' is not supported. Use: '{', '.join(validValues)}'"
+            )
 
 
 class File:
@@ -126,7 +129,9 @@ class File:
         temp_name = temp_name or f"{self.DEFAULT_FILE_NAME}"
 
         # check for extension
-        name, extension_from_name = os.path.splitext(temp_name)  # break up name into name + ext
+        name, extension_from_name = os.path.splitext(
+            temp_name
+        )  # break up name into name + ext
         has_extension_assigned = any(extension_from_name)
         extension_received_from_function = any(extension)
 
@@ -187,14 +192,20 @@ class Label:
     ):
         # make class abstract
         if type(self) is Label:
-            raise Exception("Label is an abstract class and cannot be instantiated directly")
+            raise Exception(
+                "Label is an abstract class and cannot be instantiated directly"
+            )
 
         self._text = text
 
         # Initialize dictionary for parameters
         self._params = {}
-        self.updateParam("horizontalTextPosition", horizontal_text_position, HORIZONTAL_ALIGNMENTS)
-        self.updateParam("verticalTextPosition", vertical_text_position, VERTICAL_ALIGNMENTS)
+        self.updateParam(
+            "horizontalTextPosition", horizontal_text_position, HORIZONTAL_ALIGNMENTS
+        )
+        self.updateParam(
+            "verticalTextPosition", vertical_text_position, VERTICAL_ALIGNMENTS
+        )
         self.updateParam("alignment", alignment, HORIZONTAL_ALIGNMENTS)
         self.updateParam("fontStyle", font_style, FONT_STYLES)
 
@@ -207,7 +218,9 @@ class Label:
         self.updateParam("underlinedText", underlined_text.lower(), ["true", "false"])
         if background_color:
             has_background_color = "true"
-        self.updateParam("hasBackgroundColor", has_background_color.lower(), ["true", "false"])
+        self.updateParam(
+            "hasBackgroundColor", has_background_color.lower(), ["true", "false"]
+        )
         self.updateParam("width", width)
         self.updateParam("height", height)
         self.updateParam("borderColor", border_color)
@@ -287,7 +300,9 @@ class NodeLabel(Label):
         )
 
         self.updateParam("modelName", model_name, NodeLabel.VALIDMODELPARAMS.keys())
-        self.updateParam("modelPosition", model_position, NodeLabel.VALIDMODELPARAMS[model_name])
+        self.updateParam(
+            "modelPosition", model_position, NodeLabel.VALIDMODELPARAMS[model_name]
+        )
 
 
 class EdgeLabel(Label):
@@ -348,7 +363,9 @@ class EdgeLabel(Label):
         )
 
         self.updateParam("modelName", model_name, EdgeLabel.VALIDMODELPARAMS.keys())
-        self.updateParam("modelPosition", model_position, EdgeLabel.VALIDMODELPARAMS[model_name])
+        self.updateParam(
+            "modelPosition", model_position, EdgeLabel.VALIDMODELPARAMS[model_name]
+        )
         self.updateParam("preferredPlacement", preferred_placement)
 
 
@@ -513,7 +530,9 @@ class Node:
             ET.SubElement(shape, "y:Geometry", **self.geom)
         # <y:Geometry height="30.0" width="30.0" x="475.0" y="727.0"/>
 
-        ET.SubElement(shape, "y:Fill", color=self.shape_fill, transparent=self.transparent)
+        ET.SubElement(
+            shape, "y:Fill", color=self.shape_fill, transparent=self.transparent
+        )
 
         ET.SubElement(
             shape,
@@ -684,13 +703,20 @@ class Edge:
     def convert_to_xml(self) -> ET.Element:
         """Converting edge object to xml object"""
 
-        edge = ET.Element("edge", id=str(self.id), source=str(self.node1.id), target=str(self.node2.id))
+        edge = ET.Element(
+            "edge",
+            id=str(self.id),
+            source=str(self.node1.id),
+            target=str(self.node2.id),
+        )
 
         data = ET.SubElement(edge, "data", key="data_edge")
         pl = ET.SubElement(data, "y:PolyLineEdge")
 
         ET.SubElement(pl, "y:Arrows", source=self.arrowfoot, target=self.arrowhead)
-        ET.SubElement(pl, "y:LineStyle", color=self.color, type=self.line_type, width=self.width)
+        ET.SubElement(
+            pl, "y:LineStyle", color=self.color, type=self.line_type, width=self.width
+        )
 
         for label in self.list_of_labels:
             label.addSubElement(pl)
@@ -845,7 +871,7 @@ class Group:
     ) -> Edge:
         """Adding edge to Group - for node1/node2 uses node / group objects or accepts names (creating new nodes under self) - or function can alternatively accept an instantiated Edge object."""
 
-        # map args into kwargs in case of excel data management ops
+        # map args into kwargs in case of spreadsheet data management ops
         if node1:
             kwargs["node1"] = node1
         if node2:
@@ -868,7 +894,9 @@ class Group:
 
     def is_ancestor(self, node) -> bool:
         """Check for possible nesting conflict of this id usage"""
-        return node.parent is not None and (node.parent is self or self.is_ancestor(node.parent))
+        return node.parent is not None and (
+            node.parent is self or self.is_ancestor(node.parent)
+        )
 
     def convert_to_xml(self) -> ET.Element:
         """Converting graph object to graphml xml object"""
@@ -885,7 +913,9 @@ class Group:
         if self.geom:
             ET.SubElement(group_node, "y:Geometry", **self.geom)
 
-        ET.SubElement(group_node, "y:Fill", color=self.fill, transparent=self.transparent)
+        ET.SubElement(
+            group_node, "y:Fill", color=self.fill, transparent=self.transparent
+        )
 
         ET.SubElement(
             group_node,
@@ -1015,13 +1045,13 @@ class GraphStats:
                 print(f"\tStat: {k} : {len(v)}")
 
 
-class ExcelManager:
-    """Object to handle interfacing of graphs with Excel in bulk data management operations."""
+class SpreadsheetManager:
+    """Object to handle interfacing of graphs with Spreadsheet in bulk data management operations."""
 
     def __init__(self):
         # Template operations ==============
         self.WB_TYPES = ["obj_and_hierarchy", "object_data", "relations"]
-        self.TEMP_EXCEL_WORKBOOK = File("yedextended_temp.xlsx").fullpath
+        self.TEMP_XLSX_WORKBOOK = File("yedextended_temp.xlsx").fullpath
         self.OBJECTS_WS_NAME = "Objects_and_Groups"
         self.RELATIONS_WS_NAME = "Relations"
         self.DISAMBIGUATING_SEPARATOR = "##ID:##"
@@ -1035,32 +1065,47 @@ class ExcelManager:
         # self.obj_values = list()
         # self.dup_objects = list()
 
-    def kill_excel(self) -> None:
+    def kill_spreadsheet(self) -> None:
         """Providing a utility to help primarily during test"""
-        os.system('taskkill /f /im "excel.exe"')  # FIXME: Windows only
+        if app_platform == "Windows":
+            os.system(
+                'taskkill /f /im "excel.exe"'
+            )  # FIXME: should support libreoffice, etc
+        elif app_platform == "Linux":
+            command = "ps aux | grep libreoffice | grep -v grep | awk '{print $2}' | xargs kill"
+            return execute_shell_command(command)
+            # raise NotImplementedError(
+            #     "Spreadsheet app - killing functionality not yet implemented."
+            # )
+            # command = [PROGRAM_NAME, file.fullpath]
+            # command = f"{PROGRAM_NAME} '{file.fullpath}'"
+            # output = execute_shell_command(command)
+            # subprocess.Popen(command, shell=True, start_new_session=True)
 
     def bulk_data_op_verify(self, type) -> None:
-        """Check if the given bulk data management type is valid for Excel operations."""
+        """Check if the given bulk data management type is valid for spreadsheet operations."""
         self.type = type or self.WB_TYPES[0]  # default
         if self.type not in self.WB_TYPES:
-            raise RuntimeWarning("Invalid Excel type. Use: %s" % ", ".join(self.WB_TYPES))
+            raise RuntimeWarning(
+                "Invalid spreadsheet type. Use: %s" % ", ".join(self.WB_TYPES)
+            )
 
-    def create_excel_template(self, type) -> None:
-        """Generate excel wb per template for that wb type."""
+    def create_spreadsheet_template(self, type) -> None:
+        """Generate spreadsheet wb per template for that wb type."""
 
         self.bulk_data_op_verify(type)
 
-        if os.path.isfile(self.TEMP_EXCEL_WORKBOOK):
-            os.remove(self.TEMP_EXCEL_WORKBOOK)
+        if os.path.isfile(self.TEMP_XLSX_WORKBOOK):
+            os.remove(self.TEMP_XLSX_WORKBOOK)
 
         # create workbook
-        excel_wb = pyxl.Workbook()
+        spreadsheet_wb = pyxl.Workbook()
 
         # Inserting /organizing sheets
-        excel_ws = excel_wb.active
+        spreadsheet_ws = spreadsheet_wb.active
 
         # Create object ws
-        objects_ws = excel_wb.create_sheet(self.OBJECTS_WS_NAME, 0)
+        objects_ws = spreadsheet_wb.create_sheet(self.OBJECTS_WS_NAME, 0)
 
         # Add header to sheet
         objects_ws.cell(
@@ -1071,7 +1116,7 @@ class ExcelManager:
 
         # Add relations sheet and header
         if self.type == "relations":
-            relations_ws = excel_wb.create_sheet(self.RELATIONS_WS_NAME, 1)
+            relations_ws = spreadsheet_wb.create_sheet(self.RELATIONS_WS_NAME, 1)
             relations_ws.cell(
                 row=1,
                 column=1,
@@ -1079,63 +1124,63 @@ class ExcelManager:
             )
 
         # Clean up
-        if excel_ws:
-            excel_wb.remove(excel_ws)  # removing default sheet
-        self.kill_excel()
-        excel_wb.save(self.TEMP_EXCEL_WORKBOOK)
-        excel_wb.close()
+        if spreadsheet_ws:
+            spreadsheet_wb.remove(spreadsheet_ws)  # removing default sheet
+        self.kill_spreadsheet()
+        spreadsheet_wb.save(self.TEMP_XLSX_WORKBOOK)
+        spreadsheet_wb.close()
 
-    def open_close_excel(*args, **kwargs):
-        """Provide wrapper for opening / saving / closing excel ops."""
+    def open_close_spreadsheet_app(*args, **kwargs):
+        """Provide wrapper for opening / saving / closing spreadsheet ops."""
         save = kwargs.get("save", False)
 
         def decorator(func):
             def wrapper_func(self, *args, **kwargs):
                 in_mem_file = None
-                excel_data = kwargs.get("excel_data", None)
+                spreadsheet_data = kwargs.get("spreadsheet_data", None)
                 type = kwargs.get("type", None)
                 self.bulk_data_op_verify(type)
 
-                # Graph to excel
+                # Graph to spreadsheet
                 if save:
-                    self.create_excel_template(type)
+                    self.create_spreadsheet_template(type)
                     sleep(0.5)  # FIXME: Unclear if necessary
-                    with open(self.TEMP_EXCEL_WORKBOOK, "rb") as f:
+                    with open(self.TEMP_XLSX_WORKBOOK, "rb") as f:
                         in_mem_file = io.BytesIO(f.read())
 
-                # Excel to graph
+                # Spreadsheet to graph
                 else:
-                    # In case we are given a file path or in-memory file, for excel to graph
-                    if excel_data:
-                        if isinstance(excel_data, io.BytesIO):
-                            in_mem_file = excel_data
-                        elif isinstance(excel_data, str):
-                            with open(excel_data, "rb") as f:
+                    # In case we are given a file path or in-memory file, for spreadsheet to graph
+                    if spreadsheet_data:
+                        if isinstance(spreadsheet_data, io.BytesIO):
+                            in_mem_file = spreadsheet_data
+                        elif isinstance(spreadsheet_data, str):
+                            with open(spreadsheet_data, "rb") as f:
                                 in_mem_file = io.BytesIO(f.read())
-                    # Primary use case - from template for graph to excel
+                    # Primary use case - from template for graph to spreadsheet
                     else:
-                        # It is assumed that the template is already created and filled during graph_to_excel at this point
+                        # It is assumed that the template is already created and filled during graph_to_spreadsheet at this point
                         # Lets pull a version into memory
-                        with open(self.TEMP_EXCEL_WORKBOOK, "rb") as f:
+                        with open(self.TEMP_XLSX_WORKBOOK, "rb") as f:
                             in_mem_file = io.BytesIO(f.read())
 
                 # If nothing in memory at this point we have an issue
                 if not in_mem_file:
-                    raise RuntimeWarning("No excel data found to open.")
+                    raise RuntimeWarning("No spreadsheet data found to open.")
 
                 # provide fresh handles
-                self.excel_wb = pyxl.load_workbook(in_mem_file)
-                self.objects_ws = self.excel_wb[self.OBJECTS_WS_NAME]
+                self.spreadsheet_wb = pyxl.load_workbook(in_mem_file)
+                self.objects_ws = self.spreadsheet_wb[self.OBJECTS_WS_NAME]
                 if self.type == "relations":
-                    self.relations_ws = self.excel_wb[self.RELATIONS_WS_NAME]
+                    self.relations_ws = self.spreadsheet_wb[self.RELATIONS_WS_NAME]
 
                 # Perform functions operations
                 func(self, *args, **kwargs)
 
                 # Clean up
                 if save:
-                    self.excel_wb.save(self.TEMP_EXCEL_WORKBOOK)
-                self.kill_excel()
+                    self.spreadsheet_wb.save(self.TEMP_XLSX_WORKBOOK)
+                self.kill_spreadsheet()
 
             return wrapper_func
 
@@ -1143,13 +1188,18 @@ class ExcelManager:
 
     def disambiguate_object(self, obj: Union[Node, Group, str], direction: str = "out"):
         """Generate Name:ID string for object - disambiguate if needed.
-        direction: [in|out] - in for excel to graph, out for graph to excel"""
+        direction: [in|out] - in for spreadsheet to graph, out for graph to spreadsheet
+        """
 
         if direction == "out":
             if not obj:
                 return None
-            if obj.name in self.original_stats.duplicate_names:  # migrate to using graphstats
-                return obj.name + self.DISAMBIGUATING_SEPARATOR + obj.id  # FIXME: IN EXCEL_TO_GRAPH
+            if (
+                obj.name in self.original_stats.duplicate_names
+            ):  # migrate to using graphstats
+                return (
+                    obj.name + self.DISAMBIGUATING_SEPARATOR + obj.id
+                )  # FIXME: IN SPREADSHEET_TO_GRAPH
             else:
                 return obj.name
         elif direction == "in":
@@ -1160,7 +1210,10 @@ class ExcelManager:
                 name = obj.split(self.DISAMBIGUATING_SEPARATOR)[0]
                 id = obj.split(self.DISAMBIGUATING_SEPARATOR)[1]
                 if not all([name, id]):
-                    warn(f"Invalid deduplication format of edge information or empty name: {name}:{id}.", SyntaxWarning)
+                    warn(
+                        f"Invalid deduplication format of edge information or empty name: {name}:{id}.",
+                        SyntaxWarning,
+                    )
                     return name, id
                 # Normal situation in deduplication notation
                 else:
@@ -1169,9 +1222,9 @@ class ExcelManager:
             else:
                 return obj, None  # name,id
 
-    @open_close_excel(save=True)
-    def graph_to_excel_conversion(self, type=None, graph=None) -> None:
-        """Converting graph object to excel sheet format for bulk data management operations."""
+    @open_close_spreadsheet_app(save=True)
+    def graph_to_spreadsheet_conversion(self, type=None, graph=None) -> None:
+        """Converting graph object to spreadsheet sheet format for bulk data management operations."""
         # lets assume there can be multiple graphs in session - so we should pass
         if graph:
             self.graph = graph
@@ -1179,8 +1232,10 @@ class ExcelManager:
         # Lets gather starting stats
         self.original_stats = self.graph.gather_graph_stats()
 
-        def graph_object_extract_to_excel(self, input_node: Union[Group, Graph], indent_level):
-            """Extracting graph objects to excel."""
+        def graph_object_extract_to_spreadsheet(
+            self, input_node: Union[Group, Graph], indent_level
+        ):
+            """Extracting graph objects to spreadsheet."""
             nonlocal row
 
             sub_nodes = input_node.nodes
@@ -1192,30 +1247,40 @@ class ExcelManager:
                 # desc = node.get(description, "")
                 # url = node.get(url, "")
 
-                # posting to excel
+                # posting to spreadsheet
                 self.objects_ws.cell(row=row, column=indent_level, value=str(node.name))
-                self.objects_ws.cell(row=row, column=indent_level + 1, value=str(node.id))
+                self.objects_ws.cell(
+                    row=row, column=indent_level + 1, value=str(node.id)
+                )
                 row += 1
 
             for group in sub_groups.values():
                 # id = group.id or ""
                 # label = getattr(group, "label", "")
 
-                # posting to excel
-                self.objects_ws.cell(row=row, column=indent_level, value=str(group.name))
-                self.objects_ws.cell(row=row, column=indent_level + 1, value=str(group.id))
+                # posting to spreadsheet
+                self.objects_ws.cell(
+                    row=row, column=indent_level, value=str(group.name)
+                )
+                self.objects_ws.cell(
+                    row=row, column=indent_level + 1, value=str(group.id)
+                )
                 row += 1
 
                 # Recursive extraction - adapting indent
-                graph_object_extract_to_excel(self, group, indent_level=indent_level + 1)
+                graph_object_extract_to_spreadsheet(
+                    self, group, indent_level=indent_level + 1
+                )
 
             # Hacky workaround for tabulated ownership structure
             #     Add empty node under group
             if isinstance(input_node, Group) and no_sub_items:
-                self.objects_ws.cell(row=row, column=indent_level, value="empty_group_Node")
+                self.objects_ws.cell(
+                    row=row, column=indent_level, value="empty_group_Node"
+                )
                 row += 1
 
-        def relations_extract_to_excel(self, input_node: Union[Group, Graph]):
+        def relations_extract_to_spreadsheet(self, input_node: Union[Group, Graph]):
             """Extract relations recursively - providing owner if needed"""
             nonlocal row
 
@@ -1231,7 +1296,7 @@ class ExcelManager:
 
                 edge_name = self.disambiguate_object(edge)
 
-                # post to excel
+                # post to spreadsheet
                 self.relations_ws.cell(row=row, column=col, value=node1name)
                 self.relations_ws.cell(row=row, column=col + 1, value=node2name)
                 self.relations_ws.cell(row=row, column=col + 2, value=edge_name)
@@ -1241,33 +1306,35 @@ class ExcelManager:
             # Go to next level of relations / ownership - recursive
             sub_groups = input_node.groups
             for group in sub_groups.values():
-                relations_extract_to_excel(self, group)
+                relations_extract_to_spreadsheet(self, group)
 
-        # Perform the transformation to excel ========================
+        # Perform the transformation to spreadsheet ========================
         if self.type == "obj_and_hierarchy" or self.type == "relations":
             row = 2
-            graph_object_extract_to_excel(self, self.graph, indent_level=1)
+            graph_object_extract_to_spreadsheet(self, self.graph, indent_level=1)
 
         if self.type == "relations":
             row = 2
             col = 1
-            relations_extract_to_excel(self, self.graph)
+            relations_extract_to_spreadsheet(self, self.graph)
 
-    @open_close_excel(save=False)
-    def excel_to_graph_conversion(self, type: Optional[str] = None, excel_data=None):
-        """Converting excel sheet data back into graph object."""
+    @open_close_spreadsheet_app(save=False)
+    def spreadsheet_to_graph_conversion(
+        self, type: Optional[str] = None, spreadsheet_data=None
+    ):
+        """Converting spreadsheet sheet data back into graph object."""
         self.bulk_data_op_verify(type)
 
         # Update original stats
         self.original_stats = self.graph.gather_graph_stats()
 
-        # Begin transformation from excel to graph ========================
+        # Begin transformation from spreadsheet to graph ========================
         if self.type == "obj_and_hierarchy":
             # Pull out object data
             obj_data = list(self.objects_ws.values)
             obj_data.pop(0)  # remove header
 
-            # identifying indents in excel (marker for groupings)
+            # identifying indents in spreadsheet (marker for groupings)
             indent: list[int] = []
             for row_count, row in enumerate(obj_data):
                 number_empty_cells = 0
@@ -1285,23 +1352,32 @@ class ExcelManager:
             # identifying groups
             num_items = len(obj_data)
             group_identifiers = list(
-                map(lambda x: 1 if indent[x + 1] > indent[x] else 0, range(0, num_items - 1))
+                map(
+                    lambda x: 1 if indent[x + 1] > indent[x] else 0,
+                    range(0, num_items - 1),
+                )
             )  # FIXME: WOULD FAIL ON A GROUP WITHOUT NAME
-            group_identifiers.append(0)  # small limitation - deepest or last cannot be group - must have submembers
+            group_identifiers.append(
+                0
+            )  # small limitation - deepest or last cannot be group - must have submembers
 
             # sorting ownership based on indents/groups - also correcting indents if name = ""
             owner_indexing: dict[int, Union[int, None]] = dict()
             indent_and_group_ident = zip(indent, group_identifiers)
             indent_and_group_ident = [list(row) for row in indent_and_group_ident]
             for i in range(0, num_items):
-                owner_indexing[i] = None  # default value - no object owner - graph owner
+                owner_indexing[i] = (
+                    None  # default value - no object owner - graph owner
+                )
 
                 # first item has no object owner - graph owner
                 if i == 0:
                     continue
 
                 curr_indent = indent[i]
-                for j, (indent_i, is_group) in enumerate(reversed(indent_and_group_ident[:i])):
+                for j, (indent_i, is_group) in enumerate(
+                    reversed(indent_and_group_ident[:i])
+                ):
                     # if indent_i == curr_indent - 1 and is_group == 1: # going only on 1 tab indent (no support for empty name)
                     if (
                         indent_i < curr_indent and is_group == 1
@@ -1317,7 +1393,9 @@ class ExcelManager:
             id_replaced_by_other_mapping: dict[str, Union[(Node, Group)]] = dict()
             # all_bulk_mod_ids = set()
             # all_curr_obj_ids = set(self.original_id_to_obj.keys())
-            for i, (starting_indent, gr_i, obj_row) in enumerate(zip(indent, group_identifiers, obj_data)):
+            for i, (starting_indent, gr_i, obj_row) in enumerate(
+                zip(indent, group_identifiers, obj_data)
+            ):
                 # Extracting label and id
                 name = str(
                     obj_row[starting_indent] or ""
@@ -1336,7 +1414,9 @@ class ExcelManager:
                 is_node = gr_i == 0
                 is_group_owned = owner_indexing[i] is not None
                 if is_group_owned:
-                    owner_index = owner_indexing[i]  # this works because the owner is always before
+                    owner_index = owner_indexing[
+                        i
+                    ]  # this works because the owner is always before
                     owner_object = objects[owner_index]
                 else:
                     owner_object = self.graph
@@ -1401,7 +1481,9 @@ class ExcelManager:
                     elif existing_obj.parent is not owner_object:
                         if is_group:
                             try:
-                                existing_obj.parent.remove_group(existing_obj, heal=False)
+                                existing_obj.parent.remove_group(
+                                    existing_obj, heal=False
+                                )
                             except Exception as e:
                                 warn("Group no longer existing - to remove")
 
@@ -1431,7 +1513,11 @@ class ExcelManager:
             # Finding difference of ids - previous ids no longer there... #FIXME: WHAT ABOUT CHANGED IDS?
             all_updated_obj = objects.copy()
             all_orig_obj = list(self.original_stats.all_objects.values())
-            all_deleted_obj = [obj for obj in all_orig_obj if obj not in all_updated_obj and obj is not None]
+            all_deleted_obj = [
+                obj
+                for obj in all_orig_obj
+                if obj not in all_updated_obj and obj is not None
+            ]
             for obj in all_deleted_obj:
                 parent = obj.parent or self.graph
                 if isinstance(obj, Group):  # group
@@ -1453,7 +1539,7 @@ class ExcelManager:
 
         elif self.type == "relations":
             # Access the relations sheet
-            self.relations_ws = self.excel_wb[self.RELATIONS_WS_NAME]
+            self.relations_ws = self.spreadsheet_wb[self.RELATIONS_WS_NAME]
             relations_data = self.relations_ws.values
             row_length = None
 
@@ -1500,14 +1586,23 @@ class ExcelManager:
                 # At this point the name is name(+id) - assumed we can ignore empty nodes / warn
                 two_node_check = node1_name is not None and node2_name is not None
                 if not two_node_check:
-                    warn("Node names not found...skipping line of Relations.", SyntaxWarning)
+                    warn(
+                        "Node names not found...skipping line of Relations.",
+                        SyntaxWarning,
+                    )
                     continue
 
                 # Disambiguate the object information based on constant separator
-                node1_name, node1_id = self.disambiguate_object(node1_name, direction="in")
-                node2_name, node2_id = self.disambiguate_object(node2_name, direction="in")
+                node1_name, node1_id = self.disambiguate_object(
+                    node1_name, direction="in"
+                )
+                node2_name, node2_id = self.disambiguate_object(
+                    node2_name, direction="in"
+                )
                 edge_name, edge_id = self.disambiguate_object(edge_name, direction="in")
-                owner_name, owner_id = self.disambiguate_object(owner_name, direction="in")
+                owner_name, owner_id = self.disambiguate_object(
+                    owner_name, direction="in"
+                )
 
                 # Try to reidentify items ========================================
                 def find_checks(name, id):
@@ -1533,7 +1628,10 @@ class ExcelManager:
                                     self.original_stats.name_to_ids[name][0]
                                 ]
 
-                    return result_object, result_object is not None  # , any(id_found, name_found), id_found, name_found
+                    return (
+                        result_object,
+                        result_object is not None,
+                    )  # , any(id_found, name_found), id_found, name_found
 
                 # Looking for edge =================================
                 edge_object, edge_found = find_checks(edge_name, edge_id)
@@ -1550,7 +1648,9 @@ class ExcelManager:
                 # At this point - it is assumed that the user already ran objects and hierarchy and therefore objects are fixed
                 edge_nodes_found = all([node1_found, node2_found])
                 if not edge_nodes_found:
-                    warn("Object not found...skipping line of Relations.", SyntaxWarning)
+                    warn(
+                        "Object not found...skipping line of Relations.", SyntaxWarning
+                    )
                     continue
 
                 # found edge - modify
@@ -1593,7 +1693,11 @@ class ExcelManager:
                     edge_init_dict["node1"] = node1_object
                     edge_init_dict["node2"] = node2_object
                     edge_init_dict["name"] = edge_name
-                    edge_init_dict = {key: value for (key, value) in edge_init_dict.items() if value is not None}
+                    edge_init_dict = {
+                        key: value
+                        for (key, value) in edge_init_dict.items()
+                        if value is not None
+                    }
                     if not owner_object:
                         owner_object = self.graph
                     new_edge = owner_object.add_edge(**edge_init_dict)
@@ -1607,33 +1711,43 @@ class ExcelManager:
                 parent = edge_obj.parent or self.graph
                 parent.remove_edge(del_edge_id)
 
-        elif self.type == "object_data":  # TODO: Implement management of deeper data - url, description, formatting
+        elif (
+            self.type == "object_data"
+        ):  # TODO: Implement management of deeper data - url, description, formatting
             raise NotImplementedError("This functionality is not yet implemented.")
 
         # Run Checks to avoid problems of manual data management
         self.graph.run_graph_rules()
 
     def give_user_chance_to_modify(self):
-        """Open Excel for user to modify data."""
-        # kill excel process
-        self.kill_excel()
+        """Open spreadsheet for user to modify data."""
+        # kill spreadsheet process
+        self.kill_spreadsheet()
 
         if show_guis:
-            os.startfile(self.TEMP_EXCEL_WORKBOOK)
+            if app_platform == "Windows":
+                os.startfile(self.TEMP_XLSX_WORKBOOK)
+            elif app_platform == "Linux":
+                command = f"xdg-open '{self.TEMP_XLSX_WORKBOOK}'"
+                # output = execute_shell_command(command)
+                subprocess.Popen(command, shell=True)
 
             user_response = msg.askokcancel(
-                title="yEd Bulk Data Management - Async", message="To process changes, save workbook and press ok."
+                title="yEd Bulk Data Management - Async",
+                message="To process changes, save and close workbook and press ok.",
             )
 
             if not user_response:
                 print("User cancelled operation.")
                 sys.exit()
 
-    def bulk_data_management(self, type=None, graph=None, excel_data=None):
-        """Process of converting to excel for manual operations, allows user to modify and then convert back to graph."""
-        self.graph_to_excel_conversion(type=type, graph=graph)
+    def bulk_data_management(self, type=None, graph=None, spreadsheet_data=None):
+        """Process of converting to spreadsheet for manual operations, allows user to modify and then convert back to graph."""
+        self.graph_to_spreadsheet_conversion(type=type, graph=graph)
         self.give_user_chance_to_modify()
-        self.excel_to_graph_conversion(type=type, excel_data=excel_data)
+        self.spreadsheet_to_graph_conversion(
+            type=type, spreadsheet_data=spreadsheet_data
+        )
 
         return self
 
@@ -1671,7 +1785,7 @@ class Graph:
     ) -> Edge:
         """Adding edge to Graph - for node1/node2 uses node / group objects or accepts names (creating new nodes under self) - or function can alternatively accept an instantiated Edge object."""
 
-        # map args into kwargs in case of excel data management ops
+        # map args into kwargs in case of spreadsheet data management ops
         if node1:
             kwargs["node1"] = node1
         if node2:
@@ -1686,8 +1800,12 @@ class Graph:
         if property_type not in CUSTOM_PROPERTY_TYPES:
             raise RuntimeWarning("Property Type %s not recognised" % property_type)
         if not isinstance(default_value, str):
-            raise RuntimeWarning("default_value %s needs to be a string" % default_value)
-        custom_property = CustomPropertyDefinition(scope, name, property_type, default_value)
+            raise RuntimeWarning(
+                "default_value %s needs to be a string" % default_value
+            )
+        custom_property = CustomPropertyDefinition(
+            scope, name, property_type, default_value
+        )
         self.custom_properties.append(custom_property)
         if scope == "node":
             Node.set_custom_properties_defs(custom_property)
@@ -1718,7 +1836,9 @@ class Graph:
 
         graphml = ET.Element("graphml", xmlns="http://graphml.graphdrawing.org/xmlns")
         graphml.set("xmlns:java", "http://www.yworks.com/xml/yfiles-common/1.0/java")
-        graphml.set("xmlns:sys", "http://www.yworks.com/xml/yfiles-common/markup/primitives/2.0")
+        graphml.set(
+            "xmlns:sys", "http://www.yworks.com/xml/yfiles-common/markup/primitives/2.0"
+        )
         graphml.set("xmlns:x", "http://www.yworks.com/xml/yfiles-common/markup/2.0")
         graphml.set("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance")
         graphml.set("xmlns:y", "http://www.yworks.com/xml/graphml")
@@ -1780,7 +1900,9 @@ class Graph:
 
         self.graphml = graphml
 
-    def persist_graph(self, file=None, pretty_print=False, overwrite=False, vcs_version=False) -> File:
+    def persist_graph(
+        self, file=None, pretty_print=False, overwrite=False, vcs_version=False
+    ) -> File:
         """Convert graphml object->xml tree->graphml file.
         Temporary naming used if not given.
         """
@@ -1807,22 +1929,26 @@ class Graph:
             graph_file_name, _ = os.path.splitext(graph_file.fullpath)
             path = os.path.dirname(graph_file.fullpath)
 
-            # Convert graph to excel =================
-            new_excel = ExcelManager()
-            new_excel.graph_to_excel_conversion(type="relations", graph=self)
+            # Convert graph to spreadsheet =================
+            new_spreadsheet = SpreadsheetManager()
+            new_spreadsheet.graph_to_spreadsheet_conversion(
+                type="relations", graph=self
+            )
 
             # Convert to csv version =================
 
-            # read into pandas excelfile
-            xlsx = pd.ExcelFile(new_excel.TEMP_EXCEL_WORKBOOK)
+            # read into pandas spreadsheetfile
+            xlsx = pd.ExcelFile(new_spreadsheet.TEMP_XLSX_WORKBOOK)
 
-            # Iterate through each sheet in the Excel file and save to csv
+            # Iterate through each sheet in the spreadsheet file and save to csv
             for sheet_name in xlsx.sheet_names:
                 # Read the sheet into a DataFrame
                 df = pd.read_excel(xlsx, sheet_name)
 
                 # Export the DataFrame to a CSV file
-                csv_path = os.path.join(path, graph_file_name + "-" + str(sheet_name) + ".csv")
+                csv_path = os.path.join(
+                    path, graph_file_name + "-" + str(sheet_name) + ".csv"
+                )
                 df.to_csv(csv_path, index=False)
 
         # Update the file as existing or not
@@ -1902,7 +2028,9 @@ class Graph:
                     data_nodes = node.findall("data")
                     info_node = None
                     for data_node in data_nodes:
-                        info_node = data_node.find("GenericNode") or data_node.find("ShapeNode")
+                        info_node = data_node.find("GenericNode") or data_node.find(
+                            "ShapeNode"
+                        )
                         if info_node is not None:
                             node_init_dict["node_type"] = info_node.tag
 
@@ -1921,9 +2049,13 @@ class Graph:
                             # <BorderStyle color="#000000" type="line" width="1.0" />
                             border_style = info_node.find("BorderStyle")
                             if border_style is not None:
-                                node_init_dict["border_color"] = border_style.get("color")
+                                node_init_dict["border_color"] = border_style.get(
+                                    "color"
+                                )
                                 node_init_dict["border_type"] = border_style.get("type")
-                                node_init_dict["border_width"] = border_style.get("width")
+                                node_init_dict["border_width"] = border_style.get(
+                                    "width"
+                                )
 
                             # <Shape type="rectangle" />
                             shape_sub = info_node.find("Shape")
@@ -1937,7 +2069,9 @@ class Graph:
                         else:
                             info = data_node.text
                             if info is not None:
-                                info = re.sub(r"<!\[CDATA\[", "", info)  # unneeded schema
+                                info = re.sub(
+                                    r"<!\[CDATA\[", "", info
+                                )  # unneeded schema
                                 info = re.sub(r"\]\]>", "", info)  # unneeded schema
 
                                 the_key = data_node.attrib.get("key")
@@ -1946,7 +2080,11 @@ class Graph:
                                 if info_type in ["url", "description"]:
                                     node_init_dict[info_type] = info
                     # Removing empty items
-                    node_init_dict = {key: value for (key, value) in node_init_dict.items() if value is not None}
+                    node_init_dict = {
+                        key: value
+                        for (key, value) in node_init_dict.items()
+                        if value is not None
+                    }
                     # create node
                     new_node = parent.add_node(**node_init_dict)
                     id_existing_to_graph_obj[existing_node_id] = new_node
@@ -1971,42 +2109,74 @@ class Graph:
                             for group_node in group_nodes:
                                 geom_node = group_node.find("Geometry")
                                 if geom_node is not None:
-                                    group_init_dict["height"] = geom_node.attrib.get("height", None)
-                                    group_init_dict["width"] = geom_node.attrib.get("width", None)
-                                    group_init_dict["x"] = geom_node.attrib.get("x", None)
-                                    group_init_dict["y"] = geom_node.attrib.get("y", None)
+                                    group_init_dict["height"] = geom_node.attrib.get(
+                                        "height", None
+                                    )
+                                    group_init_dict["width"] = geom_node.attrib.get(
+                                        "width", None
+                                    )
+                                    group_init_dict["x"] = geom_node.attrib.get(
+                                        "x", None
+                                    )
+                                    group_init_dict["y"] = geom_node.attrib.get(
+                                        "y", None
+                                    )
 
                                 fill_node = group_node.find("Fill")
                                 if fill_node is not None:
-                                    group_init_dict["fill"] = fill_node.attrib.get("color", None)
-                                    group_init_dict["transparent"] = fill_node.attrib.get("transparent", None)
+                                    group_init_dict["fill"] = fill_node.attrib.get(
+                                        "color", None
+                                    )
+                                    group_init_dict["transparent"] = (
+                                        fill_node.attrib.get("transparent", None)
+                                    )
 
                                 borderstyle_node = group_node.find("BorderStyle")
                                 if borderstyle_node is not None:
-                                    group_init_dict["border_color"] = borderstyle_node.attrib.get("color", None)
-                                    group_init_dict["border_type"] = borderstyle_node.attrib.get("type", None)
-                                    group_init_dict["border_width"] = borderstyle_node.attrib.get("width", None)
+                                    group_init_dict["border_color"] = (
+                                        borderstyle_node.attrib.get("color", None)
+                                    )
+                                    group_init_dict["border_type"] = (
+                                        borderstyle_node.attrib.get("type", None)
+                                    )
+                                    group_init_dict["border_width"] = (
+                                        borderstyle_node.attrib.get("width", None)
+                                    )
 
                                 nodelabel_node = group_node.find("NodeLabel")
                                 if nodelabel_node is not None:
                                     group_init_dict["name"] = (
                                         nodelabel_node.text
                                     )  # TODO: SHOULD THIS JUST BE THE FIRST ONE?  IN OTHER WORDS - IS THERE MULTIPLE THINGS TO BE CAUGHT HERE?
-                                    group_init_dict["font_family"] = nodelabel_node.attrib.get("fontFamily", None)
-                                    group_init_dict["font_size"] = nodelabel_node.attrib.get("fontSize", None)
-                                    group_init_dict["underlined_text"] = nodelabel_node.attrib.get(
-                                        "underlinedText", None
+                                    group_init_dict["font_family"] = (
+                                        nodelabel_node.attrib.get("fontFamily", None)
                                     )
-                                    group_init_dict["font_style"] = nodelabel_node.attrib.get("fontStyle", None)
-                                    group_init_dict["label_alignment"] = nodelabel_node.attrib.get("alignment", None)
+                                    group_init_dict["font_size"] = (
+                                        nodelabel_node.attrib.get("fontSize", None)
+                                    )
+                                    group_init_dict["underlined_text"] = (
+                                        nodelabel_node.attrib.get(
+                                            "underlinedText", None
+                                        )
+                                    )
+                                    group_init_dict["font_style"] = (
+                                        nodelabel_node.attrib.get("fontStyle", None)
+                                    )
+                                    group_init_dict["label_alignment"] = (
+                                        nodelabel_node.attrib.get("alignment", None)
+                                    )
 
                                 group_shape_node = group_node.find("Shape")
                                 if group_shape_node is not None:
-                                    group_init_dict["shape"] = group_shape_node.attrib.get("type", None)
+                                    group_init_dict["shape"] = (
+                                        group_shape_node.attrib.get("type", None)
+                                    )
 
                                 group_state_node = group_node.find("State")
                                 if group_state_node is not None:
-                                    group_init_dict["closed"] = group_state_node.attrib.get("closed", None)
+                                    group_init_dict["closed"] = (
+                                        group_state_node.attrib.get("closed", None)
+                                    )
                                     # group_init_dict["aaa"] = group_state_node.attrib.get("closedHeight",None)
                                     # group_init_dict["aaaa"] = group_state_node.attrib.get("closedWidth",None)
                                     # group_init_dict["aaaa"] = group_state_node.attrib.get("innerGraphDisplayEnabled",None)
@@ -2016,7 +2186,9 @@ class Graph:
                         else:
                             info = data_node.text
                             if info is not None:
-                                info = re.sub(r"<!\[CDATA\[", "", info)  # unneeded schema
+                                info = re.sub(
+                                    r"<!\[CDATA\[", "", info
+                                )  # unneeded schema
                                 info = re.sub(r"\]\]>", "", info)  # unneeded schema
 
                                 the_key = data_node.attrib.get("key")
@@ -2029,7 +2201,11 @@ class Graph:
                     sub_graph_node = node.find("graph")
 
                     # Removing empty items
-                    group_init_dict = {key: value for (key, value) in group_init_dict.items() if value is not None}
+                    group_init_dict = {
+                        key: value
+                        for (key, value) in group_init_dict.items()
+                        if value is not None
+                    }
 
                     # Creating new group
                     new_group = parent.add_group(**group_init_dict)
@@ -2056,7 +2232,9 @@ class Graph:
                     edge_init_dict["node1"] = id_existing_to_graph_obj.get(node1_id)
                     edge_init_dict["node2"] = id_existing_to_graph_obj.get(node2_id)
                 except Exception as e:  # TODO: MAKE MORE SPECIFIC
-                    print(f"One of nodes of existing edge {edge_id} not found: {node1_id}, {node2_id} ")
+                    print(
+                        f"One of nodes of existing edge {edge_id} not found: {node1_id}, {node2_id} "
+                    )
 
                 # FIXME: HOW TO MOVE FROM NODE IDS TO NODE OBJECTS - MOVE THROUGH GRAPHML FOR THE TEXT OF THAT OBJECT? - OR USE A DICTIONARY
 
@@ -2076,20 +2254,34 @@ class Graph:
 
                         linestyle_node = polylineedge.find("LineStyle")
                         if linestyle_node is not None:
-                            edge_init_dict["color"] = linestyle_node.attrib.get("color", None)
-                            edge_init_dict["line_type"] = linestyle_node.attrib.get("type", None)
-                            edge_init_dict["width"] = linestyle_node.attrib.get("width", None)
+                            edge_init_dict["color"] = linestyle_node.attrib.get(
+                                "color", None
+                            )
+                            edge_init_dict["line_type"] = linestyle_node.attrib.get(
+                                "type", None
+                            )
+                            edge_init_dict["width"] = linestyle_node.attrib.get(
+                                "width", None
+                            )
 
                         arrows_node = polylineedge.find("Arrows")
                         if arrows_node is not None:
-                            edge_init_dict["arrowfoot"] = arrows_node.attrib.get("source", None)
-                            edge_init_dict["arrowhead"] = arrows_node.attrib.get("target", None)
+                            edge_init_dict["arrowfoot"] = arrows_node.attrib.get(
+                                "source", None
+                            )
+                            edge_init_dict["arrowhead"] = arrows_node.attrib.get(
+                                "target", None
+                            )
 
                         edgelabel_node = polylineedge.find("EdgeLabel")
                         if edgelabel_node is not None:
                             edge_init_dict["label"] = edgelabel_node.text
-                            edge_init_dict["arrowfoot"] = edgelabel_node.attrib.get("source", None)
-                            edge_init_dict["arrowhead"] = edgelabel_node.attrib.get("target", None)
+                            edge_init_dict["arrowfoot"] = edgelabel_node.attrib.get(
+                                "source", None
+                            )
+                            edge_init_dict["arrowhead"] = edgelabel_node.attrib.get(
+                                "target", None
+                            )
 
                     else:
                         info = data_node.text
@@ -2110,16 +2302,20 @@ class Graph:
                 #   CUSTOM PROPERTIES
 
                 # Removing empty items
-                edge_init_dict = {key: value for (key, value) in edge_init_dict.items() if value is not None}
+                edge_init_dict = {
+                    key: value
+                    for (key, value) in edge_init_dict.items()
+                    if value is not None
+                }
                 parent.add_edge(**edge_init_dict)
 
         process_node(parent=new_graph, input_node=graph_root)
 
         return new_graph
 
-    def manage_graph_data_in_excel(self, type: Optional[str] = None):
-        """Port graph data into Excel in several formats for easy and bulk creation and management.  Then ports back into python graph structure. Types: "obj_and_hierarchy", "object_data", "relations" """
-        return ExcelManager().bulk_data_management(graph=self, type=type)
+    def manage_graph_data_in_spreadsheet(self, type: Optional[str] = None):
+        """Port graph data into spreadsheet in several formats for easy and bulk creation and management.  Then ports back into python graph structure. Types: "obj_and_hierarchy", "object_data", "relations" """
+        return SpreadsheetManager().bulk_data_management(graph=self, type=type)
 
     def gather_graph_stats(self) -> GraphStats:
         """Creating current Graph Stats for the current graph"""
@@ -2132,7 +2328,9 @@ class Graph:
 
         stats = self.gather_graph_stats()
 
-        def stranded_edges_check(self, graph_stats: GraphStats, correct: str) -> set[Edge]:
+        def stranded_edges_check(
+            self, graph_stats: GraphStats, correct: str
+        ) -> set[Edge]:
             """Check for edges with no longer valid nodes (these will prevent yEd from opening the file).  Correct them automatically or manually."""
             stranded_edges = set()
             for edge_id, edge in graph_stats.all_edges.items():
@@ -2148,8 +2346,10 @@ class Graph:
                     edge.parent.remove_edge(edge)  # Any further postprocessing needed?
 
             elif correct == "manual":
-                # Excel - run relations and highlight edges with issues?
-                raise NotImplementedError("Manual correction of stranded edges is not yet implemented.")
+                # spreadsheet - run relations and highlight edges with issues?
+                raise NotImplementedError(
+                    "Manual correction of stranded edges is not yet implemented."
+                )
 
             # offer review or update edges
             return stranded_edges
@@ -2173,89 +2373,156 @@ def is_yed_findable():
 def get_yed_pid():
     """Return process id for yEd application or None if not running"""
     yed_pid = None
-    yed_process = get_yed_process()
-    if yed_process:
-        yed_pid = yed_process.pid
-    return yed_pid
 
+    if app_platform == "Windows":
 
-def get_yed_process():
-    """Return process object for yEd application, if there is one running."""
-    process = None
-    for process_iter in psutil.process_iter(["name"]):
-        if process_iter.info["name"] == PROGRAM_NAME:
-            process = process_iter
-            break
-    return process
+        def get_yed_process():
+            """Return process object for yEd application, if there is one running."""
+            process = None
+            for process_iter in psutil.process_iter(["name"]):
+                if process_iter.info["name"] == PROGRAM_NAME:
+                    process = process_iter
+                    break
+            return process
+
+        yed_process = get_yed_process()
+        if yed_process:
+            yed_pid = yed_process.pid
+        return yed_pid
+    elif app_platform == "Linux":
+        command = "ps aux | grep yed.jar | grep -v grep | awk '{print $2}'"
+        return execute_shell_command(command)
 
 
 def is_yed_open() -> bool:
     """Check whether yEd is currently open - windows, linux, os, etc."""
-    return get_yed_pid() is not None
+    pid = get_yed_pid()
+    return pid is not None
+
+
+def execute_shell_command(command):
+    try:
+        # Run the command in the shell and capture the output
+        result = subprocess.run(
+            command, shell=True, capture_output=True, text=True, start_new_session=True
+        )
+    except Exception as e:
+        print(f"Unexpected error: {e}", file=sys.stderr)
+    else:
+        result = result.stdout.strip() if result.stdout else None
+        return result
 
 
 def start_subprocess(command):
     try:
         # Start the subprocess
-        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        pid = process.pid
-        # print(f"Started process with PID: {pid}")
-        return process
+        result = subprocess.Popen(
+            command, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+        return result
     except Exception as e:
         print(f"Unexpected error: {e}", file=sys.stderr)
+    else:
+        result = result.stdout.strip() if result.stdout else None
+        return result
     return None
 
 
 def open_yed_file(file: File, force=False):
     """Opens yed file - also will start yed if not open. Returns process or None."""
+
+    def start():
+        if app_platform == "Windows":
+            os.startfile(file.fullpath)
+        elif app_platform == "Linux":
+            # command = [PROGRAM_NAME, file.fullpath]
+            command = f"{PROGRAM_NAME} '{file.fullpath}'"
+            # output = execute_shell_command(command)
+            subprocess.Popen(command, shell=True, start_new_session=True)
+
+        timer = 0
+        time_limit = 5
+        step = 0.5
+        while not get_yed_pid() and timer < time_limit:
+            sleep(step)
+            timer += step
+        if timer == time_limit:
+            print("Failed attempt to start yEd application with file.")
+
     if not file.file_exists:
         return None
 
     if force:
         if show_guis:
             print("Act on yEd message box...")
-            answer = msg.askokcancel(title="Force yEd App Close", message="Are you ok to force yEd closure?")
+            answer = msg.askokcancel(
+                title="Force yEd App Close", message="Are you ok to force yEd closure?"
+            )
             if not answer:
                 print("Exiting program")
                 exit()
 
         kill_yed()
-
-    os.startfile(file.fullpath)
+    start()
 
     if force:
-        sleep(4)
-        if get_yed_pid() is None:
-            os.startfile(file.fullpath)
-
-    return get_yed_process()
+        counter = 0
+        start_attempts = 3
+        while not get_yed_pid() and counter < start_attempts:
+            start()
+            start_attempts += 1
+        if counter == start_attempts:
+            print(f"Failed {counter} attempts at starting yEd application with file.")
 
 
 def start_yed(wait=False):
-    """Starts yEd program (if installed and on path and not already open). Returns process or None.
+    """Starts yEd program (if installed and on path and not already open)..
 
     Wait - if True, will wait for yEd to close before returning.
     """
-    process = None
     if is_yed_findable():
         if not is_yed_open():
             if wait is False:
-                command = [
-                    PROGRAM_NAME,
-                ]
-                process = start_subprocess(command)
+                if os.name == "nt":  # Windows
+                    subprocess.Popen(
+                        "yEd", shell=True, creationflags=subprocess.CREATE_NEW_CONSOLE
+                    )
+                else:  # macOS/Linux
+                    subprocess.Popen("yEd", shell=True, start_new_session=True)
 
-                return process or None
             else:
+                print("Program waiting for yEd to be manually closed")
                 subprocess.run(PROGRAM_NAME)
-                return None
+                # return None
+    timer = 0
+    time_limit = 8
+    step = 0.5
+    while not get_yed_pid() and timer < time_limit:
+        sleep(step)
+        timer += step
+    if timer == time_limit:
+        print("Problem with starting yEd application.")
 
 
 def kill_yed() -> None:
     """Ends yEd program (if installed and on path and open)."""
-    yed_process = get_yed_process()
-    if yed_process:
-        yed_process.kill()
+    if app_platform == "Windows":
+        yed_process = get_yed_process()
+        if yed_process:
+            yed_process.kill()
+    elif app_platform == "Linux":
+        pid = get_yed_pid()
+        command = f"kill {pid}"
+        execute_shell_command(command=command)
+
+    timer = 0
+    time_limit = 6
+    step = 0.5
+    while get_yed_pid() and timer < time_limit:
+        sleep(step)
+        timer += step
+    if timer == time_limit:
+        print("Problem with killing yEd application.")
 
 
 # Utilities =======================================
@@ -2358,7 +2625,9 @@ def update_traceability(obj, owner, operation, heal=True) -> None:
 
                 for edge in obj.edges.values():
                     edge.parent = obj.parent  # reassign parent: edge side
-                    obj.parent.edges[edge.id] = edge  # reassign parent: group/graph side
+                    obj.parent.edges[edge.id] = (
+                        edge  # reassign parent: group/graph side
+                    )
 
                 for group in obj.groups.values():
                     group.parent = obj.parent
@@ -2420,7 +2689,10 @@ def add_edge(owner: Union[(Graph, Group)], **kwargs) -> Edge:
 
         if isinstance(owner, Group):
             if not (owner.is_ancestor(node1) and owner.is_ancestor(node2)):
-                raise RuntimeWarning("Group %s is not ancestor of both %s and %s" % (owner.id, node1.id, node2.id))
+                raise RuntimeWarning(
+                    "Group %s is not ancestor of both %s and %s"
+                    % (owner.id, node1.id, node2.id)
+                )
 
         edge = Edge(**kwargs)
 

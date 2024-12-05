@@ -1,8 +1,0 @@
-openpyxl==3.1.2
-psutil==5.9.8
-flake8
-pytest
-pytest-random-order
-coverage
-coverage-badge
-setuptools

@@ -1,10 +1,15 @@
+import os
+
 import yedextended as yed
 
 print("Ensure graph saved if already open!")
 
 path = input("Enter path for xgml file (leave empty for default, \" don't matter):")
-path = path or r"C:\Users\Cole\OneDrive\LOGIC_MODELS\IT_CONCEPTS.graphml"
-path = path.replace('"', "")
+if not os.path.exists(path):
+    raise Exception(f"Invalid path given: {path}")
+path = path.replace(
+    '"', ""
+)  # this is to remove quotations included in windows copy path command
 print(f"Path: {path}")
 
 # Loading as python objects
@@ -13,8 +18,8 @@ stats = graph.gather_graph_stats()
 stats.print_stats()
 input("Press enter to continue.")
 
-# Modify with excel
-graph.manage_graph_data_in_excel()
+# Modify with spreadsheet
+graph.manage_graph_data_in_spreadsheet()
 
 # Check changes
 graph.gather_graph_stats().print_stats()

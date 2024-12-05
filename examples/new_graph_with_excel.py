@@ -1,17 +1,18 @@
-import yedextended as yed
 import os
+
+import yedextended as yed
 
 print("Ensure graphs saved if open!")
 path = input("Enter path for xgml file (leave empty for new, \" don't matter):")
-path = path or r"C:\Users\Cole\desktop\newgraph.graphml"
+path = path or os.path.join(os.getcwd(), "newgraph.graphml")
 path = path.replace('"', "")
 print(f"Path Used: {path}")
 graph = yed.Graph()
 
 # input("Press enter to continue.")
 
-# Modify with excel
-graph.manage_graph_data_in_excel()
+# Modify with spreadsheet
+graph.manage_graph_data_in_spreadsheet()
 
 # Check changes
 graph.gather_graph_stats().print_stats()
