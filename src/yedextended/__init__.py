@@ -1131,7 +1131,7 @@ class SpreadsheetManager:
         spreadsheet_wb.close()
 
     def open_close_spreadsheet_app(*args, **kwargs):
-        """Provide wrapper for opening / saving / closing spreadsheet ops."""
+        """Decorator to handle opening, saving, and closing spreadsheet operations."""
         save = kwargs.get("save", False)
 
         def decorator(func):
@@ -2370,21 +2370,21 @@ def is_yed_findable():
     return yed_found_bool
 
 
+def get_yed_process():
+    """Return process object for yEd application, if there is one running."""
+    process = None
+    for process_iter in psutil.process_iter(["name"]):
+        if process_iter.info["name"] == PROGRAM_NAME:
+            process = process_iter
+            break
+    return process
+
+
 def get_yed_pid():
     """Return process id for yEd application or None if not running"""
     yed_pid = None
 
     if app_platform == "Windows":
-
-        def get_yed_process():
-            """Return process object for yEd application, if there is one running."""
-            process = None
-            for process_iter in psutil.process_iter(["name"]):
-                if process_iter.info["name"] == PROGRAM_NAME:
-                    process = process_iter
-                    break
-            return process
-
         yed_process = get_yed_process()
         if yed_process:
             yed_pid = yed_process.pid
