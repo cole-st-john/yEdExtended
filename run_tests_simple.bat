@@ -1,1 +1,0 @@
-pytest -v --tb=no --no-header --disable-warnings --no-summary
