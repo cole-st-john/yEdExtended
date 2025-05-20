@@ -170,6 +170,7 @@ cython_debug/
 #.idea/
 # VS Code
 .vscode/
+.codemap/
 
 # personal
 todo.md
