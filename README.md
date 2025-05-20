@@ -216,7 +216,7 @@ Following programmatic creation or modification of a graph, consider using the f
 Provides comprehensive support for great variety of ``node_shapes``, ``line_types``, ``font_styles``, ``arrow_types``, custom parameters, UML, complex and deeply nested relationship structures and more.
 
 
-# yEdExtended V1.0.12 vs V2.0.0
+# yEdExtended V2.X.X vs V1.X.X
 
 **yEdExtended v2.0.0** is a major rewrite focusing on a instantiation method - using names vs ids.  These changes can be summarized as following:
 
