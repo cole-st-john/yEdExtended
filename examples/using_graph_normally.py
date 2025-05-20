@@ -7,9 +7,7 @@ print("Ensure graph saved if already open!")
 path = input("Enter path for xgml file (leave empty for default, \" don't matter):")
 if not os.path.exists(path):
     raise Exception(f"Invalid path given: {path}")
-path = path.replace(
-    '"', ""
-)  # this is to remove quotations included in windows copy path command
+path = path.replace('"', "")  # this is to remove quotations included in windows copy path command
 print(f"Path: {path}")
 
 # Loading as python objects

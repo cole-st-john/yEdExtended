@@ -15,15 +15,13 @@ import openpyxl as pyxl
 import pytest
 
 import yedextended as yed
-from yedextended import File, Graph, GraphStats, Node, SpreadsheetManager
+from yedextended import File, Graph, Node, SpreadsheetManager
 
 # Triggers around testing completion
 yed.testing = True
 yed.show_guis = False
 ci_system_check = os.environ.get("CI")
-local_testing = (
-    yed.app_platform.startswith(("Windows", "Linux")) and not ci_system_check == "True"
-)
+local_testing = yed.app_platform.startswith(("Windows", "Linux")) and not ci_system_check == "True"
 
 
 class Test_File:
@@ -59,7 +57,7 @@ class Test_File:
         test_file_obj = File("examples/abc.graphml")
         assert test_file_obj.basename == "abc.graphml"
         assert test_file_obj.window_search_name == "abc.graphml - yEd"
-        assert test_file_obj.fullpath == os.path.join(os.getcwd(),"examples","abc.graphml")
+        assert test_file_obj.fullpath == os.path.join(os.getcwd(), "examples", "abc.graphml")
         assert os.path.exists(test_file_obj.dir) is True
 
     def test_file_object_basics_4(self):
@@ -373,9 +371,7 @@ class Test_GraphStats:
         When: gathering statistics
         Then: statistics as expected"""
 
-        test_graph = Graph().from_existing_graph(
-            "examples/yed_created_empty_graph.graphml"
-        )
+        test_graph = Graph().from_existing_graph("examples/yed_created_empty_graph.graphml")
 
         # When: taking the stats
         results_stats = test_graph.gather_graph_stats()
@@ -444,9 +440,7 @@ def test_custom_property_assignment():
     assert edge1.Population == "1", "Property not as expected"
     assert group1.Population == "2", "Property not as expected"
 
-    assert (
-        graph1.stringify_graph().find("Population") != -1
-    ), "Property not found in graphml"
+    assert graph1.stringify_graph().find("Population") != -1, "Property not found in graphml"
 
 
 def test_persist_graph_1():
@@ -546,9 +540,7 @@ def test_from_existing_graph_1():
     Given: use of from_existing_graph
     When: graph file is existing
     Then: return graph object expected"""
-    assert isinstance(
-        Graph().from_existing_graph("examples/yed_created_edges.graphml"), Graph
-    )
+    assert isinstance(Graph().from_existing_graph("examples/yed_created_edges.graphml"), Graph)
 
 
 def test_from_existing_graph_2():
@@ -772,7 +764,6 @@ class Test_Yed_App_Functions:
         Then: yEd closed / no longer running"""
         # start yEd
         yed.start_yed()
-        import time
 
         assert yed.is_yed_open() is True
 
@@ -789,7 +780,6 @@ class Test_Yed_App_Functions:
         assert yed.is_yed_open() is False
 
     def test_yed_kill_then_check3(self):
-
         yed.start_yed()
         assert yed.get_yed_pid() is not None
 
@@ -819,9 +809,7 @@ class Test_Yed_App_Functions:
 
         graph_file = File("not_real_file.graphml")
         yed.open_yed_file(graph_file)
-        assert (
-            yed.get_yed_pid() is None
-        ), "Expected no yEd process should be open - instead one is open."
+        assert yed.get_yed_pid() is None, "Expected no yEd process should be open - instead one is open."
 
 
 @pytest.mark.skipif(
@@ -841,9 +829,7 @@ class Test_Spreadsheet_Related_Functionalities:
         graph = Graph()
         spreadsheet.graph_to_spreadsheet_conversion(graph=graph)
         assert spreadsheet is not None
-        assert (
-            os.path.isfile(spreadsheet.TEMP_XLSX_WORKBOOK) is True
-        ), "Expected template created"
+        assert os.path.isfile(spreadsheet.TEMP_XLSX_WORKBOOK) is True, "Expected template created"
 
     def test_graph_to_spreadsheet_conversion_obj(self):
         """
@@ -956,12 +942,8 @@ class Test_Spreadsheet_Related_Functionalities:
         # test conversion to spreadsheet
         spreadsheet1 = SpreadsheetManager()
         data = "examples/yed_test_to_spreadsheet3.xlsx"
-        spreadsheet1.spreadsheet_to_graph_conversion(
-            type="obj_and_hierarchy", spreadsheet_data=data
-        )
-        spreadsheet1.spreadsheet_to_graph_conversion(
-            type="relations", spreadsheet_data=data
-        )
+        spreadsheet1.spreadsheet_to_graph_conversion(type="obj_and_hierarchy", spreadsheet_data=data)
+        spreadsheet1.spreadsheet_to_graph_conversion(type="relations", spreadsheet_data=data)
         reference_string = graph1.stringify_graph()
         return_string = spreadsheet1.graph.stringify_graph()
         assert reference_string == return_string
@@ -981,17 +963,11 @@ class Test_Spreadsheet_Related_Functionalities:
         # Get graph
         spreadsheet1 = SpreadsheetManager()
         data1 = "examples/yed_test_to_spreadsheet4.xlsx"
-        spreadsheet1.spreadsheet_to_graph_conversion(
-            type="obj_and_hierarchy", spreadsheet_data=data1
-        )
-        spreadsheet1.spreadsheet_to_graph_conversion(
-            type="relations", spreadsheet_data=data1
-        )
+        spreadsheet1.spreadsheet_to_graph_conversion(type="obj_and_hierarchy", spreadsheet_data=data1)
+        spreadsheet1.spreadsheet_to_graph_conversion(type="relations", spreadsheet_data=data1)
         print("")
         data2 = "examples/yed_test_to_spreadsheet4_mod1.xlsx"
-        spreadsheet1.spreadsheet_to_graph_conversion(
-            type="obj_and_hierarchy", spreadsheet_data=data2
-        )
+        spreadsheet1.spreadsheet_to_graph_conversion(type="obj_and_hierarchy", spreadsheet_data=data2)
         # spreadsheet1.spreadsheet_to_graph_conversion(type="relations", spreadsheet_data=data2)
         # print("h")
 
@@ -1004,17 +980,11 @@ class Test_Spreadsheet_Related_Functionalities:
         # Get graph
         spreadsheet1 = SpreadsheetManager()
         data1 = "examples/yed_test_to_spreadsheet4.xlsx"
-        spreadsheet1.spreadsheet_to_graph_conversion(
-            type="obj_and_hierarchy", spreadsheet_data=data1
-        )
-        spreadsheet1.spreadsheet_to_graph_conversion(
-            type="relations", spreadsheet_data=data1
-        )
+        spreadsheet1.spreadsheet_to_graph_conversion(type="obj_and_hierarchy", spreadsheet_data=data1)
+        spreadsheet1.spreadsheet_to_graph_conversion(type="relations", spreadsheet_data=data1)
 
         data2 = "examples/yed_test_to_spreadsheet4_mod2.xlsx"
-        spreadsheet1.spreadsheet_to_graph_conversion(
-            type="relations", spreadsheet_data=data2
-        )
+        spreadsheet1.spreadsheet_to_graph_conversion(type="relations", spreadsheet_data=data2)
 
     def get_filtered_sheet_values(self, sheet):
         """test helper function - Filter empty columns from spreadsheet data for test comparison"""
@@ -1082,9 +1052,7 @@ def test_edge_with_custom_props_2():
 
     graph.define_custom_property("node", "Population", "int", "0")
     graph.define_custom_property("node", "Unemployment", "double", "0.0")
-    graph.define_custom_property(
-        "node", "Environmental Engagements", "boolean", "false"
-    )
+    graph.define_custom_property("node", "Environmental Engagements", "boolean", "false")
     graph.define_custom_property("node", "Mayor", "string", "")
     graph.define_custom_property("node", "Country", "string", "")
 

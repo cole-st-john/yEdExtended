@@ -263,6 +263,14 @@ Tips to getting started in development:
 		$ pip install -r dev-requirements.txt
 		```
 
+- To run linting/formatting manually (better to install ruff extension in editor)
+
+	- ruff:
+		```sh
+		ruff format . # formatting
+		ruff check --fix .  # linting and fixing
+		```
+
 - To run the tests:
 
 ```console

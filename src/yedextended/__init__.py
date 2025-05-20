@@ -90,9 +90,7 @@ def checkValue(
 
     if validValues:
         if value not in validValues:
-            raise ValueError(
-                f"{parameter_name} '{value}' is not supported. Use: '{', '.join(validValues)}'"
-            )
+            raise ValueError(f"{parameter_name} '{value}' is not supported. Use: '{', '.join(validValues)}'")
 
 
 class File:
@@ -129,9 +127,7 @@ class File:
         temp_name = temp_name or f"{self.DEFAULT_FILE_NAME}"
 
         # check for extension
-        name, extension_from_name = os.path.splitext(
-            temp_name
-        )  # break up name into name + ext
+        name, extension_from_name = os.path.splitext(temp_name)  # break up name into name + ext
         has_extension_assigned = any(extension_from_name)
         extension_received_from_function = any(extension)
 
@@ -192,20 +188,14 @@ class Label:
     ):
         # make class abstract
         if type(self) is Label:
-            raise Exception(
-                "Label is an abstract class and cannot be instantiated directly"
-            )
+            raise Exception("Label is an abstract class and cannot be instantiated directly")
 
         self._text = text
 
         # Initialize dictionary for parameters
         self._params = {}
-        self.updateParam(
-            "horizontalTextPosition", horizontal_text_position, HORIZONTAL_ALIGNMENTS
-        )
-        self.updateParam(
-            "verticalTextPosition", vertical_text_position, VERTICAL_ALIGNMENTS
-        )
+        self.updateParam("horizontalTextPosition", horizontal_text_position, HORIZONTAL_ALIGNMENTS)
+        self.updateParam("verticalTextPosition", vertical_text_position, VERTICAL_ALIGNMENTS)
         self.updateParam("alignment", alignment, HORIZONTAL_ALIGNMENTS)
         self.updateParam("fontStyle", font_style, FONT_STYLES)
 
@@ -218,9 +208,7 @@ class Label:
         self.updateParam("underlinedText", underlined_text.lower(), ["true", "false"])
         if background_color:
             has_background_color = "true"
-        self.updateParam(
-            "hasBackgroundColor", has_background_color.lower(), ["true", "false"]
-        )
+        self.updateParam("hasBackgroundColor", has_background_color.lower(), ["true", "false"])
         self.updateParam("width", width)
         self.updateParam("height", height)
         self.updateParam("borderColor", border_color)
@@ -300,9 +288,7 @@ class NodeLabel(Label):
         )
 
         self.updateParam("modelName", model_name, NodeLabel.VALIDMODELPARAMS.keys())
-        self.updateParam(
-            "modelPosition", model_position, NodeLabel.VALIDMODELPARAMS[model_name]
-        )
+        self.updateParam("modelPosition", model_position, NodeLabel.VALIDMODELPARAMS[model_name])
 
 
 class EdgeLabel(Label):
@@ -363,9 +349,7 @@ class EdgeLabel(Label):
         )
 
         self.updateParam("modelName", model_name, EdgeLabel.VALIDMODELPARAMS.keys())
-        self.updateParam(
-            "modelPosition", model_position, EdgeLabel.VALIDMODELPARAMS[model_name]
-        )
+        self.updateParam("modelPosition", model_position, EdgeLabel.VALIDMODELPARAMS[model_name])
         self.updateParam("preferredPlacement", preferred_placement)
 
 
@@ -530,9 +514,7 @@ class Node:
             ET.SubElement(shape, "y:Geometry", **self.geom)
         # <y:Geometry height="30.0" width="30.0" x="475.0" y="727.0"/>
 
-        ET.SubElement(
-            shape, "y:Fill", color=self.shape_fill, transparent=self.transparent
-        )
+        ET.SubElement(shape, "y:Fill", color=self.shape_fill, transparent=self.transparent)
 
         ET.SubElement(
             shape,
@@ -714,9 +696,7 @@ class Edge:
         pl = ET.SubElement(data, "y:PolyLineEdge")
 
         ET.SubElement(pl, "y:Arrows", source=self.arrowfoot, target=self.arrowhead)
-        ET.SubElement(
-            pl, "y:LineStyle", color=self.color, type=self.line_type, width=self.width
-        )
+        ET.SubElement(pl, "y:LineStyle", color=self.color, type=self.line_type, width=self.width)
 
         for label in self.list_of_labels:
             label.addSubElement(pl)
@@ -894,9 +874,7 @@ class Group:
 
     def is_ancestor(self, node) -> bool:
         """Check for possible nesting conflict of this id usage"""
-        return node.parent is not None and (
-            node.parent is self or self.is_ancestor(node.parent)
-        )
+        return node.parent is not None and (node.parent is self or self.is_ancestor(node.parent))
 
     def convert_to_xml(self) -> ET.Element:
         """Converting graph object to graphml xml object"""
@@ -913,9 +891,7 @@ class Group:
         if self.geom:
             ET.SubElement(group_node, "y:Geometry", **self.geom)
 
-        ET.SubElement(
-            group_node, "y:Fill", color=self.fill, transparent=self.transparent
-        )
+        ET.SubElement(group_node, "y:Fill", color=self.fill, transparent=self.transparent)
 
         ET.SubElement(
             group_node,
@@ -1068,9 +1044,7 @@ class SpreadsheetManager:
     def kill_spreadsheet(self) -> None:
         """Providing a utility to help primarily during test"""
         if app_platform == "Windows":
-            os.system(
-                'taskkill /f /im "excel.exe"'
-            )  # FIXME: should support libreoffice, etc
+            os.system('taskkill /f /im "excel.exe"')  # FIXME: should support libreoffice, etc
         elif app_platform == "Linux":
             command = "ps aux | grep libreoffice | grep -v grep | awk '{print $2}' | xargs kill"
             return execute_shell_command(command)
@@ -1086,9 +1060,7 @@ class SpreadsheetManager:
         """Check if the given bulk data management type is valid for spreadsheet operations."""
         self.type = type or self.WB_TYPES[0]  # default
         if self.type not in self.WB_TYPES:
-            raise RuntimeWarning(
-                "Invalid spreadsheet type. Use: %s" % ", ".join(self.WB_TYPES)
-            )
+            raise RuntimeWarning("Invalid spreadsheet type. Use: %s" % ", ".join(self.WB_TYPES))
 
     def create_spreadsheet_template(self, type) -> None:
         """Generate spreadsheet wb per template for that wb type."""
@@ -1194,12 +1166,8 @@ class SpreadsheetManager:
         if direction == "out":
             if not obj:
                 return None
-            if (
-                obj.name in self.original_stats.duplicate_names
-            ):  # migrate to using graphstats
-                return (
-                    obj.name + self.DISAMBIGUATING_SEPARATOR + obj.id
-                )  # FIXME: IN SPREADSHEET_TO_GRAPH
+            if obj.name in self.original_stats.duplicate_names:  # migrate to using graphstats
+                return obj.name + self.DISAMBIGUATING_SEPARATOR + obj.id  # FIXME: IN SPREADSHEET_TO_GRAPH
             else:
                 return obj.name
         elif direction == "in":
@@ -1232,9 +1200,7 @@ class SpreadsheetManager:
         # Lets gather starting stats
         self.original_stats = self.graph.gather_graph_stats()
 
-        def graph_object_extract_to_spreadsheet(
-            self, input_node: Union[Group, Graph], indent_level
-        ):
+        def graph_object_extract_to_spreadsheet(self, input_node: Union[Group, Graph], indent_level):
             """Extracting graph objects to spreadsheet."""
             nonlocal row
 
@@ -1249,9 +1215,7 @@ class SpreadsheetManager:
 
                 # posting to spreadsheet
                 self.objects_ws.cell(row=row, column=indent_level, value=str(node.name))
-                self.objects_ws.cell(
-                    row=row, column=indent_level + 1, value=str(node.id)
-                )
+                self.objects_ws.cell(row=row, column=indent_level + 1, value=str(node.id))
                 row += 1
 
             for group in sub_groups.values():
@@ -1259,25 +1223,17 @@ class SpreadsheetManager:
                 # label = getattr(group, "label", "")
 
                 # posting to spreadsheet
-                self.objects_ws.cell(
-                    row=row, column=indent_level, value=str(group.name)
-                )
-                self.objects_ws.cell(
-                    row=row, column=indent_level + 1, value=str(group.id)
-                )
+                self.objects_ws.cell(row=row, column=indent_level, value=str(group.name))
+                self.objects_ws.cell(row=row, column=indent_level + 1, value=str(group.id))
                 row += 1
 
                 # Recursive extraction - adapting indent
-                graph_object_extract_to_spreadsheet(
-                    self, group, indent_level=indent_level + 1
-                )
+                graph_object_extract_to_spreadsheet(self, group, indent_level=indent_level + 1)
 
             # Hacky workaround for tabulated ownership structure
             #     Add empty node under group
             if isinstance(input_node, Group) and no_sub_items:
-                self.objects_ws.cell(
-                    row=row, column=indent_level, value="empty_group_Node"
-                )
+                self.objects_ws.cell(row=row, column=indent_level, value="empty_group_Node")
                 row += 1
 
         def relations_extract_to_spreadsheet(self, input_node: Union[Group, Graph]):
@@ -1319,9 +1275,7 @@ class SpreadsheetManager:
             relations_extract_to_spreadsheet(self, self.graph)
 
     @open_close_spreadsheet_app(save=False)
-    def spreadsheet_to_graph_conversion(
-        self, type: Optional[str] = None, spreadsheet_data=None
-    ):
+    def spreadsheet_to_graph_conversion(self, type: Optional[str] = None, spreadsheet_data=None):
         """Converting spreadsheet sheet data back into graph object."""
         self.bulk_data_op_verify(type)
 
@@ -1357,27 +1311,21 @@ class SpreadsheetManager:
                     range(0, num_items - 1),
                 )
             )  # FIXME: WOULD FAIL ON A GROUP WITHOUT NAME
-            group_identifiers.append(
-                0
-            )  # small limitation - deepest or last cannot be group - must have submembers
+            group_identifiers.append(0)  # small limitation - deepest or last cannot be group - must have submembers
 
             # sorting ownership based on indents/groups - also correcting indents if name = ""
             owner_indexing: dict[int, Union[int, None]] = dict()
             indent_and_group_ident = zip(indent, group_identifiers)
             indent_and_group_ident = [list(row) for row in indent_and_group_ident]
             for i in range(0, num_items):
-                owner_indexing[i] = (
-                    None  # default value - no object owner - graph owner
-                )
+                owner_indexing[i] = None  # default value - no object owner - graph owner
 
                 # first item has no object owner - graph owner
                 if i == 0:
                     continue
 
                 curr_indent = indent[i]
-                for j, (indent_i, is_group) in enumerate(
-                    reversed(indent_and_group_ident[:i])
-                ):
+                for j, (indent_i, is_group) in enumerate(reversed(indent_and_group_ident[:i])):
                     # if indent_i == curr_indent - 1 and is_group == 1: # going only on 1 tab indent (no support for empty name)
                     if (
                         indent_i < curr_indent and is_group == 1
@@ -1393,9 +1341,7 @@ class SpreadsheetManager:
             id_replaced_by_other_mapping: dict[str, Union[(Node, Group)]] = dict()
             # all_bulk_mod_ids = set()
             # all_curr_obj_ids = set(self.original_id_to_obj.keys())
-            for i, (starting_indent, gr_i, obj_row) in enumerate(
-                zip(indent, group_identifiers, obj_data)
-            ):
+            for i, (starting_indent, gr_i, obj_row) in enumerate(zip(indent, group_identifiers, obj_data)):
                 # Extracting label and id
                 name = str(
                     obj_row[starting_indent] or ""
@@ -1414,9 +1360,7 @@ class SpreadsheetManager:
                 is_node = gr_i == 0
                 is_group_owned = owner_indexing[i] is not None
                 if is_group_owned:
-                    owner_index = owner_indexing[
-                        i
-                    ]  # this works because the owner is always before
+                    owner_index = owner_indexing[i]  # this works because the owner is always before
                     owner_object = objects[owner_index]
                 else:
                     owner_object = self.graph
@@ -1453,7 +1397,7 @@ class SpreadsheetManager:
                         # remove node
                         try:
                             existing_obj.parent.remove_node(existing_obj)
-                        except Exception as e:
+                        except Exception:
                             warn("Node no longer existing - to remove")
 
                         # add group
@@ -1469,7 +1413,7 @@ class SpreadsheetManager:
                         # remove group (without changing dependencies)
                         try:
                             existing_obj.parent.remove_group(existing_obj, heal=False)
-                        except Exception as e:
+                        except Exception:
                             warn("Group no longer existing - to remove")
 
                         # add node
@@ -1481,10 +1425,8 @@ class SpreadsheetManager:
                     elif existing_obj.parent is not owner_object:
                         if is_group:
                             try:
-                                existing_obj.parent.remove_group(
-                                    existing_obj, heal=False
-                                )
-                            except Exception as e:
+                                existing_obj.parent.remove_group(existing_obj, heal=False)
+                            except Exception:
                                 warn("Group no longer existing - to remove")
 
                             mod_group = owner_object.add_group(name)
@@ -1494,7 +1436,7 @@ class SpreadsheetManager:
                         elif is_node:
                             try:
                                 existing_obj.parent.remove_node(existing_obj)
-                            except Exception as e:
+                            except Exception:
                                 warn("Node no longer existing - to remove")
 
                             mod_node = owner_object.add_node(name)
@@ -1513,23 +1455,19 @@ class SpreadsheetManager:
             # Finding difference of ids - previous ids no longer there... #FIXME: WHAT ABOUT CHANGED IDS?
             all_updated_obj = objects.copy()
             all_orig_obj = list(self.original_stats.all_objects.values())
-            all_deleted_obj = [
-                obj
-                for obj in all_orig_obj
-                if obj not in all_updated_obj and obj is not None
-            ]
+            all_deleted_obj = [obj for obj in all_orig_obj if obj not in all_updated_obj and obj is not None]
             for obj in all_deleted_obj:
                 parent = obj.parent or self.graph
                 if isinstance(obj, Group):  # group
                     # find all immediate dependents and connect them to owner
                     try:
                         parent.remove_group(obj, heal=False)
-                    except Exception as e:
+                    except Exception:
                         warn(f"Group {obj.name} no longer existing - to remove")
                 elif isinstance(obj, Node):  # node
                     try:
                         parent.remove_node(obj)
-                    except Exception as e:
+                    except Exception:
                         warn(f"Node {obj.name} no longer existing - to remove")
 
             # Update all ids - after delete operations
@@ -1593,16 +1531,10 @@ class SpreadsheetManager:
                     continue
 
                 # Disambiguate the object information based on constant separator
-                node1_name, node1_id = self.disambiguate_object(
-                    node1_name, direction="in"
-                )
-                node2_name, node2_id = self.disambiguate_object(
-                    node2_name, direction="in"
-                )
+                node1_name, node1_id = self.disambiguate_object(node1_name, direction="in")
+                node2_name, node2_id = self.disambiguate_object(node2_name, direction="in")
                 edge_name, edge_id = self.disambiguate_object(edge_name, direction="in")
-                owner_name, owner_id = self.disambiguate_object(
-                    owner_name, direction="in"
-                )
+                owner_name, owner_id = self.disambiguate_object(owner_name, direction="in")
 
                 # Try to reidentify items ========================================
                 def find_checks(name, id):
@@ -1648,9 +1580,7 @@ class SpreadsheetManager:
                 # At this point - it is assumed that the user already ran objects and hierarchy and therefore objects are fixed
                 edge_nodes_found = all([node1_found, node2_found])
                 if not edge_nodes_found:
-                    warn(
-                        "Object not found...skipping line of Relations.", SyntaxWarning
-                    )
+                    warn("Object not found...skipping line of Relations.", SyntaxWarning)
                     continue
 
                 # found edge - modify
@@ -1693,11 +1623,7 @@ class SpreadsheetManager:
                     edge_init_dict["node1"] = node1_object
                     edge_init_dict["node2"] = node2_object
                     edge_init_dict["name"] = edge_name
-                    edge_init_dict = {
-                        key: value
-                        for (key, value) in edge_init_dict.items()
-                        if value is not None
-                    }
+                    edge_init_dict = {key: value for (key, value) in edge_init_dict.items() if value is not None}
                     if not owner_object:
                         owner_object = self.graph
                     new_edge = owner_object.add_edge(**edge_init_dict)
@@ -1711,9 +1637,7 @@ class SpreadsheetManager:
                 parent = edge_obj.parent or self.graph
                 parent.remove_edge(del_edge_id)
 
-        elif (
-            self.type == "object_data"
-        ):  # TODO: Implement management of deeper data - url, description, formatting
+        elif self.type == "object_data":  # TODO: Implement management of deeper data - url, description, formatting
             raise NotImplementedError("This functionality is not yet implemented.")
 
         # Run Checks to avoid problems of manual data management
@@ -1745,9 +1669,7 @@ class SpreadsheetManager:
         """Process of converting to spreadsheet for manual operations, allows user to modify and then convert back to graph."""
         self.graph_to_spreadsheet_conversion(type=type, graph=graph)
         self.give_user_chance_to_modify()
-        self.spreadsheet_to_graph_conversion(
-            type=type, spreadsheet_data=spreadsheet_data
-        )
+        self.spreadsheet_to_graph_conversion(type=type, spreadsheet_data=spreadsheet_data)
 
         return self
 
@@ -1800,12 +1722,8 @@ class Graph:
         if property_type not in CUSTOM_PROPERTY_TYPES:
             raise RuntimeWarning("Property Type %s not recognised" % property_type)
         if not isinstance(default_value, str):
-            raise RuntimeWarning(
-                "default_value %s needs to be a string" % default_value
-            )
-        custom_property = CustomPropertyDefinition(
-            scope, name, property_type, default_value
-        )
+            raise RuntimeWarning("default_value %s needs to be a string" % default_value)
+        custom_property = CustomPropertyDefinition(scope, name, property_type, default_value)
         self.custom_properties.append(custom_property)
         if scope == "node":
             Node.set_custom_properties_defs(custom_property)
@@ -1836,9 +1754,7 @@ class Graph:
 
         graphml = ET.Element("graphml", xmlns="http://graphml.graphdrawing.org/xmlns")
         graphml.set("xmlns:java", "http://www.yworks.com/xml/yfiles-common/1.0/java")
-        graphml.set(
-            "xmlns:sys", "http://www.yworks.com/xml/yfiles-common/markup/primitives/2.0"
-        )
+        graphml.set("xmlns:sys", "http://www.yworks.com/xml/yfiles-common/markup/primitives/2.0")
         graphml.set("xmlns:x", "http://www.yworks.com/xml/yfiles-common/markup/2.0")
         graphml.set("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance")
         graphml.set("xmlns:y", "http://www.yworks.com/xml/graphml")
@@ -1900,9 +1816,7 @@ class Graph:
 
         self.graphml = graphml
 
-    def persist_graph(
-        self, file=None, pretty_print=False, overwrite=False, vcs_version=False
-    ) -> File:
+    def persist_graph(self, file=None, pretty_print=False, overwrite=False, vcs_version=False) -> File:
         """Convert graphml object->xml tree->graphml file.
         Temporary naming used if not given.
         """
@@ -1931,9 +1845,7 @@ class Graph:
 
             # Convert graph to spreadsheet =================
             new_spreadsheet = SpreadsheetManager()
-            new_spreadsheet.graph_to_spreadsheet_conversion(
-                type="relations", graph=self
-            )
+            new_spreadsheet.graph_to_spreadsheet_conversion(type="relations", graph=self)
 
             # Convert to csv version =================
 
@@ -1946,9 +1858,7 @@ class Graph:
                 df = pd.read_excel(xlsx, sheet_name)
 
                 # Export the DataFrame to a CSV file
-                csv_path = os.path.join(
-                    path, graph_file_name + "-" + str(sheet_name) + ".csv"
-                )
+                csv_path = os.path.join(path, graph_file_name + "-" + str(sheet_name) + ".csv")
                 df.to_csv(csv_path, index=False)
 
         # Update the file as existing or not
@@ -2028,9 +1938,7 @@ class Graph:
                     data_nodes = node.findall("data")
                     info_node = None
                     for data_node in data_nodes:
-                        info_node = data_node.find("GenericNode") or data_node.find(
-                            "ShapeNode"
-                        )
+                        info_node = data_node.find("GenericNode") or data_node.find("ShapeNode")
                         if info_node is not None:
                             node_init_dict["node_type"] = info_node.tag
 
@@ -2049,13 +1957,9 @@ class Graph:
                             # <BorderStyle color="#000000" type="line" width="1.0" />
                             border_style = info_node.find("BorderStyle")
                             if border_style is not None:
-                                node_init_dict["border_color"] = border_style.get(
-                                    "color"
-                                )
+                                node_init_dict["border_color"] = border_style.get("color")
                                 node_init_dict["border_type"] = border_style.get("type")
-                                node_init_dict["border_width"] = border_style.get(
-                                    "width"
-                                )
+                                node_init_dict["border_width"] = border_style.get("width")
 
                             # <Shape type="rectangle" />
                             shape_sub = info_node.find("Shape")
@@ -2069,9 +1973,7 @@ class Graph:
                         else:
                             info = data_node.text
                             if info is not None:
-                                info = re.sub(
-                                    r"<!\[CDATA\[", "", info
-                                )  # unneeded schema
+                                info = re.sub(r"<!\[CDATA\[", "", info)  # unneeded schema
                                 info = re.sub(r"\]\]>", "", info)  # unneeded schema
 
                                 the_key = data_node.attrib.get("key")
@@ -2080,11 +1982,7 @@ class Graph:
                                 if info_type in ["url", "description"]:
                                     node_init_dict[info_type] = info
                     # Removing empty items
-                    node_init_dict = {
-                        key: value
-                        for (key, value) in node_init_dict.items()
-                        if value is not None
-                    }
+                    node_init_dict = {key: value for (key, value) in node_init_dict.items() if value is not None}
                     # create node
                     new_node = parent.add_node(**node_init_dict)
                     id_existing_to_graph_obj[existing_node_id] = new_node
@@ -2109,74 +2007,42 @@ class Graph:
                             for group_node in group_nodes:
                                 geom_node = group_node.find("Geometry")
                                 if geom_node is not None:
-                                    group_init_dict["height"] = geom_node.attrib.get(
-                                        "height", None
-                                    )
-                                    group_init_dict["width"] = geom_node.attrib.get(
-                                        "width", None
-                                    )
-                                    group_init_dict["x"] = geom_node.attrib.get(
-                                        "x", None
-                                    )
-                                    group_init_dict["y"] = geom_node.attrib.get(
-                                        "y", None
-                                    )
+                                    group_init_dict["height"] = geom_node.attrib.get("height", None)
+                                    group_init_dict["width"] = geom_node.attrib.get("width", None)
+                                    group_init_dict["x"] = geom_node.attrib.get("x", None)
+                                    group_init_dict["y"] = geom_node.attrib.get("y", None)
 
                                 fill_node = group_node.find("Fill")
                                 if fill_node is not None:
-                                    group_init_dict["fill"] = fill_node.attrib.get(
-                                        "color", None
-                                    )
-                                    group_init_dict["transparent"] = (
-                                        fill_node.attrib.get("transparent", None)
-                                    )
+                                    group_init_dict["fill"] = fill_node.attrib.get("color", None)
+                                    group_init_dict["transparent"] = fill_node.attrib.get("transparent", None)
 
                                 borderstyle_node = group_node.find("BorderStyle")
                                 if borderstyle_node is not None:
-                                    group_init_dict["border_color"] = (
-                                        borderstyle_node.attrib.get("color", None)
-                                    )
-                                    group_init_dict["border_type"] = (
-                                        borderstyle_node.attrib.get("type", None)
-                                    )
-                                    group_init_dict["border_width"] = (
-                                        borderstyle_node.attrib.get("width", None)
-                                    )
+                                    group_init_dict["border_color"] = borderstyle_node.attrib.get("color", None)
+                                    group_init_dict["border_type"] = borderstyle_node.attrib.get("type", None)
+                                    group_init_dict["border_width"] = borderstyle_node.attrib.get("width", None)
 
                                 nodelabel_node = group_node.find("NodeLabel")
                                 if nodelabel_node is not None:
                                     group_init_dict["name"] = (
                                         nodelabel_node.text
                                     )  # TODO: SHOULD THIS JUST BE THE FIRST ONE?  IN OTHER WORDS - IS THERE MULTIPLE THINGS TO BE CAUGHT HERE?
-                                    group_init_dict["font_family"] = (
-                                        nodelabel_node.attrib.get("fontFamily", None)
+                                    group_init_dict["font_family"] = nodelabel_node.attrib.get("fontFamily", None)
+                                    group_init_dict["font_size"] = nodelabel_node.attrib.get("fontSize", None)
+                                    group_init_dict["underlined_text"] = nodelabel_node.attrib.get(
+                                        "underlinedText", None
                                     )
-                                    group_init_dict["font_size"] = (
-                                        nodelabel_node.attrib.get("fontSize", None)
-                                    )
-                                    group_init_dict["underlined_text"] = (
-                                        nodelabel_node.attrib.get(
-                                            "underlinedText", None
-                                        )
-                                    )
-                                    group_init_dict["font_style"] = (
-                                        nodelabel_node.attrib.get("fontStyle", None)
-                                    )
-                                    group_init_dict["label_alignment"] = (
-                                        nodelabel_node.attrib.get("alignment", None)
-                                    )
+                                    group_init_dict["font_style"] = nodelabel_node.attrib.get("fontStyle", None)
+                                    group_init_dict["label_alignment"] = nodelabel_node.attrib.get("alignment", None)
 
                                 group_shape_node = group_node.find("Shape")
                                 if group_shape_node is not None:
-                                    group_init_dict["shape"] = (
-                                        group_shape_node.attrib.get("type", None)
-                                    )
+                                    group_init_dict["shape"] = group_shape_node.attrib.get("type", None)
 
                                 group_state_node = group_node.find("State")
                                 if group_state_node is not None:
-                                    group_init_dict["closed"] = (
-                                        group_state_node.attrib.get("closed", None)
-                                    )
+                                    group_init_dict["closed"] = group_state_node.attrib.get("closed", None)
                                     # group_init_dict["aaa"] = group_state_node.attrib.get("closedHeight",None)
                                     # group_init_dict["aaaa"] = group_state_node.attrib.get("closedWidth",None)
                                     # group_init_dict["aaaa"] = group_state_node.attrib.get("innerGraphDisplayEnabled",None)
@@ -2186,9 +2052,7 @@ class Graph:
                         else:
                             info = data_node.text
                             if info is not None:
-                                info = re.sub(
-                                    r"<!\[CDATA\[", "", info
-                                )  # unneeded schema
+                                info = re.sub(r"<!\[CDATA\[", "", info)  # unneeded schema
                                 info = re.sub(r"\]\]>", "", info)  # unneeded schema
 
                                 the_key = data_node.attrib.get("key")
@@ -2201,11 +2065,7 @@ class Graph:
                     sub_graph_node = node.find("graph")
 
                     # Removing empty items
-                    group_init_dict = {
-                        key: value
-                        for (key, value) in group_init_dict.items()
-                        if value is not None
-                    }
+                    group_init_dict = {key: value for (key, value) in group_init_dict.items() if value is not None}
 
                     # Creating new group
                     new_group = parent.add_group(**group_init_dict)
@@ -2231,10 +2091,8 @@ class Graph:
                 try:
                     edge_init_dict["node1"] = id_existing_to_graph_obj.get(node1_id)
                     edge_init_dict["node2"] = id_existing_to_graph_obj.get(node2_id)
-                except Exception as e:  # TODO: MAKE MORE SPECIFIC
-                    print(
-                        f"One of nodes of existing edge {edge_id} not found: {node1_id}, {node2_id} "
-                    )
+                except Exception:  # TODO: MAKE MORE SPECIFIC
+                    print(f"One of nodes of existing edge {edge_id} not found: {node1_id}, {node2_id} ")
 
                 # FIXME: HOW TO MOVE FROM NODE IDS TO NODE OBJECTS - MOVE THROUGH GRAPHML FOR THE TEXT OF THAT OBJECT? - OR USE A DICTIONARY
 
@@ -2254,34 +2112,20 @@ class Graph:
 
                         linestyle_node = polylineedge.find("LineStyle")
                         if linestyle_node is not None:
-                            edge_init_dict["color"] = linestyle_node.attrib.get(
-                                "color", None
-                            )
-                            edge_init_dict["line_type"] = linestyle_node.attrib.get(
-                                "type", None
-                            )
-                            edge_init_dict["width"] = linestyle_node.attrib.get(
-                                "width", None
-                            )
+                            edge_init_dict["color"] = linestyle_node.attrib.get("color", None)
+                            edge_init_dict["line_type"] = linestyle_node.attrib.get("type", None)
+                            edge_init_dict["width"] = linestyle_node.attrib.get("width", None)
 
                         arrows_node = polylineedge.find("Arrows")
                         if arrows_node is not None:
-                            edge_init_dict["arrowfoot"] = arrows_node.attrib.get(
-                                "source", None
-                            )
-                            edge_init_dict["arrowhead"] = arrows_node.attrib.get(
-                                "target", None
-                            )
+                            edge_init_dict["arrowfoot"] = arrows_node.attrib.get("source", None)
+                            edge_init_dict["arrowhead"] = arrows_node.attrib.get("target", None)
 
                         edgelabel_node = polylineedge.find("EdgeLabel")
                         if edgelabel_node is not None:
                             edge_init_dict["label"] = edgelabel_node.text
-                            edge_init_dict["arrowfoot"] = edgelabel_node.attrib.get(
-                                "source", None
-                            )
-                            edge_init_dict["arrowhead"] = edgelabel_node.attrib.get(
-                                "target", None
-                            )
+                            edge_init_dict["arrowfoot"] = edgelabel_node.attrib.get("source", None)
+                            edge_init_dict["arrowhead"] = edgelabel_node.attrib.get("target", None)
 
                     else:
                         info = data_node.text
@@ -2302,11 +2146,7 @@ class Graph:
                 #   CUSTOM PROPERTIES
 
                 # Removing empty items
-                edge_init_dict = {
-                    key: value
-                    for (key, value) in edge_init_dict.items()
-                    if value is not None
-                }
+                edge_init_dict = {key: value for (key, value) in edge_init_dict.items() if value is not None}
                 parent.add_edge(**edge_init_dict)
 
         process_node(parent=new_graph, input_node=graph_root)
@@ -2328,9 +2168,7 @@ class Graph:
 
         stats = self.gather_graph_stats()
 
-        def stranded_edges_check(
-            self, graph_stats: GraphStats, correct: str
-        ) -> set[Edge]:
+        def stranded_edges_check(self, graph_stats: GraphStats, correct: str) -> set[Edge]:
             """Check for edges with no longer valid nodes (these will prevent yEd from opening the file).  Correct them automatically or manually."""
             stranded_edges = set()
             for edge_id, edge in graph_stats.all_edges.items():
@@ -2347,9 +2185,7 @@ class Graph:
 
             elif correct == "manual":
                 # spreadsheet - run relations and highlight edges with issues?
-                raise NotImplementedError(
-                    "Manual correction of stranded edges is not yet implemented."
-                )
+                raise NotImplementedError("Manual correction of stranded edges is not yet implemented.")
 
             # offer review or update edges
             return stranded_edges
@@ -2374,7 +2210,7 @@ def get_yed_process():
     """Return process object for yEd application, if there is one running."""
     process = None
     for process_iter in psutil.process_iter(["name"]):
-        if process_iter.info["name"].startswith( PROGRAM_NAME):
+        if process_iter.info["name"].startswith(PROGRAM_NAME):
             process = process_iter
             break
     return process
@@ -2403,9 +2239,7 @@ def is_yed_open() -> bool:
 def execute_shell_command(command):
     try:
         # Run the command in the shell and capture the output
-        result = subprocess.run(
-            command, shell=True, capture_output=True, text=True, start_new_session=True
-        )
+        result = subprocess.run(command, shell=True, capture_output=True, text=True, start_new_session=True)
     except Exception as e:
         print(f"Unexpected error: {e}", file=sys.stderr)
     else:
@@ -2416,9 +2250,7 @@ def execute_shell_command(command):
 def start_subprocess(command):
     try:
         # Start the subprocess
-        result = subprocess.Popen(
-            command, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        )
+        result = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         return result
     except Exception as e:
         print(f"Unexpected error: {e}", file=sys.stderr)
@@ -2455,9 +2287,7 @@ def open_yed_file(file: File, force=False):
     if force:
         if show_guis:
             print("Act on yEd message box...")
-            answer = msg.askokcancel(
-                title="Force yEd App Close", message="Are you ok to force yEd closure?"
-            )
+            answer = msg.askokcancel(title="Force yEd App Close", message="Are you ok to force yEd closure?")
             if not answer:
                 print("Exiting program")
                 exit()
@@ -2484,9 +2314,7 @@ def start_yed(wait=False):
         if not is_yed_open():
             if wait is False:
                 if os.name == "nt":  # Windows
-                    subprocess.Popen(
-                        "yEd", shell=True, creationflags=subprocess.CREATE_NEW_CONSOLE
-                    )
+                    subprocess.Popen("yEd", shell=True, creationflags=subprocess.CREATE_NEW_CONSOLE)
                 else:  # macOS/Linux
                     subprocess.Popen("yEd", shell=True, start_new_session=True)
 
@@ -2625,9 +2453,7 @@ def update_traceability(obj, owner, operation, heal=True) -> None:
 
                 for edge in obj.edges.values():
                     edge.parent = obj.parent  # reassign parent: edge side
-                    obj.parent.edges[edge.id] = (
-                        edge  # reassign parent: group/graph side
-                    )
+                    obj.parent.edges[edge.id] = edge  # reassign parent: group/graph side
 
                 for group in obj.groups.values():
                     group.parent = obj.parent
@@ -2689,10 +2515,7 @@ def add_edge(owner: Union[(Graph, Group)], **kwargs) -> Edge:
 
         if isinstance(owner, Group):
             if not (owner.is_ancestor(node1) and owner.is_ancestor(node2)):
-                raise RuntimeWarning(
-                    "Group %s is not ancestor of both %s and %s"
-                    % (owner.id, node1.id, node2.id)
-                )
+                raise RuntimeWarning("Group %s is not ancestor of both %s and %s" % (owner.id, node1.id, node2.id))
 
         edge = Edge(**kwargs)
 

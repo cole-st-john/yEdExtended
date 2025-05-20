@@ -21,6 +21,7 @@ python-dateutil==2.9.0.post0
     # via pandas
 pytz==2024.2
     # via pandas
+ruff=0.11.10
 setuptools==80.7.1
 six==1.17.0
 types-openpyxl==3.1.5.20241126
