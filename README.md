@@ -29,7 +29,7 @@ This Python library extends the functionality of the readily available and free 
 Below are some basic usages of yEdExtended in interfacing with yEd and GraphML files:
 
 
-## Installing yEdExtended
+## Installing yEdExtended (for usage)
 From PyPI, using pip:
 ```console
 $ pip install yedextended  
@@ -38,13 +38,6 @@ From GITHUB, using pip:
 ```console
 $ python -m pip install git+https://github.com/cole-st-john/yEdExtended
 ```
-
-From GITHUB, using git:
-```console
-$ git clone https://github.com/cole-st-john/yedextended
-```
-
-
 
 ## Importing yEdExtended for usage
 
@@ -241,7 +234,7 @@ This change simplifies object handling, ensuring better consistency and flexibil
 
 Interested in contributing or co-managing further development?  Just reach out!
 
-Dev. Requirements:
+Tips to getting started in development:
 
 - Install yEd from [here](https://www.yworks.com/products/yed/download#download).
 
@@ -250,24 +243,30 @@ Dev. Requirements:
   - [MS Excel](https://www.microsoft.com/en/microsoft-365/excel?market=af)
   - [LibreOffice](https://www.libreoffice.org/)
 
+- Fork repository on GITHUB
+
+- Clone your fork locally using git:
+	- 	```console
+		$ git clone https://github.com/<your-user-name>/yedextended
+		```
+
+- Install package as editable:
+	- pip:
+		```console
+		$ pip install -e .
+		```
+
 - Install required package dependencies (per one of these methods):
 
 	- pip:
 		```console
 		$ pip install -r dev-requirements.txt
 		```
-	-- OR --
-	- uv:
-    	- Install [UV](https://docs.astral.sh/uv/getting-started/installation/)
-    	- Run uv sync in the repository:
-    	```console
-    	$ uv sync 
-    	```
 
-To run the tests:
+- To run the tests:
 
 ```console
-$ uv run pytest -v .
+$ python -m pytest -v .
 ```
 
 References: 
