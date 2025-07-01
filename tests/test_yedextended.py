@@ -1085,15 +1085,27 @@ def test_node_geoms():
     """
     Given: simple graph
     When: adding node with geom traits
-    Then: the object output should be as expected"""
+    Then: the object output should be as expected,
+    also when imported from file"""
 
     file = "temp.graphml"
     if os.path.exists(file):
         os.remove(file)
 
     graph = Graph()
-    graph.add_node("Node1", height="50", width="100", x="100", y="100")
+    node1 = graph.add_node("Node1", height="50", width="100", x="200", y="300")
+    assert node1.geom["height"] == "50", "Expected height to be 50"
+    assert node1.geom["width"] == "100", "Expected width to be 100"
+    assert node1.geom["x"] == "200", "Expected x to be 200"
+    assert node1.geom["y"] == "300", "Expected y to be 300"
     graph.persist_graph()
+
+    graph1 = Graph().from_existing_graph(file)
+    node2 = graph1.nodes["n0"]
+    assert node2.geom["height"] == "50", "Expected height to be 50"
+    assert node2.geom["width"] == "100", "Expected width to be 100"
+    assert node2.geom["x"] == "200", "Expected x to be 200"
+    assert node2.geom["y"] == "300", "Expected y to be 300"
 
     if os.path.exists(file):
         os.remove(file)

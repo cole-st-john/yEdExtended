@@ -1941,14 +1941,17 @@ class Graph:
                         info_node = data_node.find("GenericNode") or data_node.find("ShapeNode")
                         if info_node is not None:
                             node_init_dict["node_type"] = info_node.tag
-                            
-                            #GH - adding geometry
+
+                            # Geometry information
                             node_geom = info_node.find("Geometry")
                             if node_geom is not None:
                                 #print(f"{node_geom.tag = }, {node_geom.get("x") =} {node_geom.get("y") =} ")
-                                node_init_dict["x"] = node_geom.get("x")
-                                node_init_dict["y"] = node_geom.get("y")
-                                
+                                geometry_vars = ["height", "width", "x", "y"]
+                                for var in geometry_vars:
+                                    val = node_geom.get(var)
+                                    if val is not None:
+                                        node_init_dict[var] = val
+
                             node_label = info_node.find("NodeLabel")
                             if node_label is not None:
                                 node_init_dict["name"] = node_label.text
