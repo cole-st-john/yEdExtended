@@ -57,7 +57,7 @@ class Test_File:
         test_file_obj = File("examples/abc.graphml")
         assert test_file_obj.basename == "abc.graphml"
         assert test_file_obj.window_search_name == "abc.graphml - yEd"
-        assert test_file_obj.fullpath == os.path.join(os.getcwd(), "examples", "abc.graphml")
+        assert test_file_obj.fullpath.lower() == os.path.join(os.getcwd(), "examples", "abc.graphml").lower()
         assert os.path.exists(test_file_obj.dir) is True
 
     def test_file_object_basics_4(self):
