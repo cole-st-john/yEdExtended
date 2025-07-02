@@ -1343,9 +1343,7 @@ class SpreadsheetManager:
             # all_curr_obj_ids = set(self.original_id_to_obj.keys())
             for i, (starting_indent, gr_i, obj_row) in enumerate(zip(indent, group_identifiers, obj_data)):
                 # Extracting label and id
-                name = str(
-                    obj_row[starting_indent] or ""
-                )  # assumes name is given and we need to convert to string for some items
+                name = str(obj_row[starting_indent] or "")  # assumes name is given and we need to convert to string for some items
                 id = None
                 try:
                     id = obj_row[starting_indent + 1]
@@ -1551,14 +1549,9 @@ class SpreadsheetManager:
                     if not result_object:
                         # Look by name
                         if name:
-                            name_found = (
-                                name in self.original_stats.name_to_ids.keys()
-                                and not self.original_stats.name_reused(name)
-                            )
+                            name_found = name in self.original_stats.name_to_ids.keys() and not self.original_stats.name_reused(name)
                             if name_found:
-                                result_object = self.original_stats.all_graph_items[
-                                    self.original_stats.name_to_ids[name][0]
-                                ]
+                                result_object = self.original_stats.all_graph_items[self.original_stats.name_to_ids[name][0]]
 
                     return (
                         result_object,
@@ -1945,7 +1938,7 @@ class Graph:
                             # Geometry information
                             node_geom = info_node.find("Geometry")
                             if node_geom is not None:
-                                #print(f"{node_geom.tag = }, {node_geom.get("x") =} {node_geom.get("y") =} ")
+                                # print(f"{node_geom.tag = }, {node_geom.get("x") =} {node_geom.get("y") =} ")
                                 geometry_vars = ["height", "width", "x", "y"]
                                 for var in geometry_vars:
                                     val = node_geom.get(var)
@@ -2040,9 +2033,7 @@ class Graph:
                                     )  # TODO: SHOULD THIS JUST BE THE FIRST ONE?  IN OTHER WORDS - IS THERE MULTIPLE THINGS TO BE CAUGHT HERE?
                                     group_init_dict["font_family"] = nodelabel_node.attrib.get("fontFamily", None)
                                     group_init_dict["font_size"] = nodelabel_node.attrib.get("fontSize", None)
-                                    group_init_dict["underlined_text"] = nodelabel_node.attrib.get(
-                                        "underlinedText", None
-                                    )
+                                    group_init_dict["underlined_text"] = nodelabel_node.attrib.get("underlinedText", None)
                                     group_init_dict["font_style"] = nodelabel_node.attrib.get("fontStyle", None)
                                     group_init_dict["label_alignment"] = nodelabel_node.attrib.get("alignment", None)
 
@@ -2409,9 +2400,7 @@ def assign_traceable_id(obj) -> None:
         # This object already logged under this owner - rename to order in list
         if obj in list(obj.parent.combined_objects.values()):
             obj_parent_index = list(obj.parent.combined_objects.values()).index(obj)
-            obj.id = (
-                parent_id_prefix + "n" + str(obj_parent_index)
-            )  # FIXME: HAS TO BE THE INDEX OF THIS ITEM IN THE LIST
+            obj.id = parent_id_prefix + "n" + str(obj_parent_index)  # FIXME: HAS TO BE THE INDEX OF THIS ITEM IN THE LIST
         # this item is new - appending to end of current dict - give new number for that level
         else:
             obj.id = parent_id_prefix + "n" + str(len(obj.parent.combined_objects))
@@ -2420,9 +2409,7 @@ def assign_traceable_id(obj) -> None:
             obj_parent_index = list(obj.parent.edges.values()).index(obj)
             obj.id = parent_id_prefix + "e" + str(obj_parent_index)
         else:
-            obj.id = (
-                parent_id_prefix + "e" + str(len(obj.parent.edges))
-            )  # FIXME: HAS TO BE THE INDEX OF THIS ITEM IN THE LIST
+            obj.id = parent_id_prefix + "e" + str(len(obj.parent.edges))  # FIXME: HAS TO BE THE INDEX OF THIS ITEM IN THE LIST
 
     # print(obj.id)
 
