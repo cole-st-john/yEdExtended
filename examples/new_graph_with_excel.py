@@ -25,6 +25,6 @@ file1 = graph.persist_graph(path, overwrite=True)
 file1.open_with_yed()
 
 # makes easier to see feedback in cmd
-user_input = input("Type 'Y' to delete graph or enter simply to end program.")
-if user_input in ("Y", "y"):
-    os.remove(path)
+# user_input = input("Type 'Y' to delete graph or enter simply to end program.")
+# if user_input in ("Y", "y"):
+#     os.remove(path)

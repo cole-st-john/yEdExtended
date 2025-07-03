@@ -98,18 +98,18 @@ yEdExtended provides for the majority of formatting one expects in yEd graphs.
 
 ```python
 # Add graph nodes and edges with some examples of non-default formatting
-graph1.add_node("foo", font_family="Zapfino")
+graph1.add_node("foo", fontFamily="Zapfino")
 
 graph1.add_node(
     "foo2",
     shape="roundrectangle",
-    font_style="bolditalic",
-    underlined_text="true",
+    fontStyle="bolditalic",
+    underlinedText="true",
 )
 
 graph1.add_edge("foo1", "foo2")
 
-graph1.add_node("abc", font_size="72", height="100")
+graph1.add_node("abc", fontSize="72", height="100")
 
 graph1.add_node("Multi\nline\ntext")
 
@@ -125,7 +125,7 @@ graph1.add_edge(
     color="#0000FF",
     arrowhead="white_diamond",
     arrowfoot="standard",
-    line_type="dotted",
+    lineType="dotted",
 )
 ```
 
@@ -213,7 +213,7 @@ Following programmatic creation or modification of a graph, consider using the f
 
 # Options
 
-Provides comprehensive support for great variety of ``node_shapes``, ``line_types``, ``font_styles``, ``arrow_types``, custom parameters, UML, complex and deeply nested relationship structures and more.
+Provides comprehensive support for great variety of ``node_shapes``, ``lineTypes``, ``fontStyles``, ``arrow_types``, custom parameters, UML, complex and deeply nested relationship structures and more.
 
 
 # yEdExtended V2.X.X vs V1.X.X
