@@ -147,7 +147,7 @@ class File:
 
         return temp_name  # give back name+ext combo
 
-    def open_with_yed(self, force=False):
+    def open_with_yed(self, force=False, wait=False):
         """Method to open GraphML file directly with yEd application (must be installed and on path)."""
 
         # Ensure a valid yed extension file
@@ -156,7 +156,7 @@ class File:
 
         print("opening file with yed...")
 
-        open_yed_file(self, force)
+        open_yed_file(self, force, wait)
 
         return get_yed_pid()
 
@@ -172,19 +172,18 @@ class Label:
         height="18.1328125",
         width=None,
         alignment="center",
-        font_family="Dialog",
-        font_size="12",
-        font_style="plain",
+        fontFamily="Dialog",
+        fontSize="12",
+        fontStyle="plain",
         horizontalTextPosition="center",
-        underlined_text="false",
-        text_color="#000000",
-        icon_text_gap="4",
-        horizontal_text_position="center",
-        vertical_text_position="center",
+        verticalTextPosition="center",
+        underlinedText="false",
+        textColor="#000000",
+        iconTextGap="4",
         visible="true",
-        border_color=None,
-        background_color=None,
-        has_background_color="false",
+        borderColor=None,
+        backgroundColor=None,
+        hasBackgroundColor="false",
     ):
         # make class abstract
         if type(self) is Label:
@@ -194,25 +193,25 @@ class Label:
 
         # Initialize dictionary for parameters
         self._params = {}
-        self.updateParam("horizontalTextPosition", horizontal_text_position, HORIZONTAL_ALIGNMENTS)
-        self.updateParam("verticalTextPosition", vertical_text_position, VERTICAL_ALIGNMENTS)
+        self.updateParam("horizontalTextPosition", horizontalTextPosition, HORIZONTAL_ALIGNMENTS)
+        self.updateParam("verticalTextPosition", verticalTextPosition, VERTICAL_ALIGNMENTS)
         self.updateParam("alignment", alignment, HORIZONTAL_ALIGNMENTS)
-        self.updateParam("fontStyle", font_style, FONT_STYLES)
+        self.updateParam("fontStyle", fontStyle, FONT_STYLES)
 
         # TODO: Implement range checks
-        self.updateParam("fontFamily", font_family)
-        self.updateParam("iconTextGap", icon_text_gap)
-        self.updateParam("fontSize", font_size)
-        self.updateParam("textColor", text_color)
+        self.updateParam("fontFamily", fontFamily)
+        self.updateParam("iconTextGap", iconTextGap)
+        self.updateParam("fontSize", fontSize)
+        self.updateParam("textColor", textColor)
         self.updateParam("visible", visible.lower(), ["true", "false"])
-        self.updateParam("underlinedText", underlined_text.lower(), ["true", "false"])
-        if background_color:
-            has_background_color = "true"
-        self.updateParam("hasBackgroundColor", has_background_color.lower(), ["true", "false"])
+        self.updateParam("underlinedText", underlinedText.lower(), ["true", "false"])
+        if backgroundColor:
+            hasBackgroundColor = "true"
+        self.updateParam("hasBackgroundColor", hasBackgroundColor.lower(), ["true", "false"])
         self.updateParam("width", width)
         self.updateParam("height", height)
-        self.updateParam("borderColor", border_color)
-        self.updateParam("backgroundColor", background_color)
+        self.updateParam("borderColor", borderColor)
+        self.updateParam("backgroundColor", backgroundColor)
 
     def updateParam(
         self,
@@ -249,46 +248,44 @@ class NodeLabel(Label):
         self,
         text,
         alignment="center",
-        font_family="Dialog",
-        font_size="12",
-        font_style="plain",
+        fontFamily="Dialog",
+        fontSize="12",
+        fontStyle="plain",
         height="18.1328125",
         horizontalTextPosition="center",
-        underlined_text="false",
-        icon_text_gap="4",
-        text_color="#000000",
-        horizontal_text_position="center",
-        vertical_text_position="center",
+        verticalTextPosition="center",
+        underlinedText="false",
+        iconTextGap="4",
+        textColor="#000000",
         visible="true",
-        has_background_color="false",
+        hasBackgroundColor="false",
         width="55.708984375",
-        model_name="internal",
-        border_color=None,
-        background_color=None,
-        model_position="c",
+        modelName="internal",
+        borderColor=None,
+        backgroundColor=None,
+        modelPosition="c",
     ):
         super().__init__(
             text,
             height,
             width,
             alignment,
-            font_family,
-            font_size,
-            font_style,
+            fontFamily,
+            fontSize,
+            fontStyle,
             horizontalTextPosition,
-            underlined_text,
-            text_color,
-            icon_text_gap,
-            horizontal_text_position,
-            vertical_text_position,
+            verticalTextPosition,
+            underlinedText,
+            textColor,
+            iconTextGap,
             visible,
-            border_color,
-            background_color,
-            has_background_color,
+            borderColor,
+            backgroundColor,
+            hasBackgroundColor,
         )
 
-        self.updateParam("modelName", model_name, NodeLabel.VALIDMODELPARAMS.keys())
-        self.updateParam("modelPosition", model_position, NodeLabel.VALIDMODELPARAMS[model_name])
+        self.updateParam("modelName", modelName, NodeLabel.VALIDMODELPARAMS.keys())
+        self.updateParam("modelPosition", modelPosition, NodeLabel.VALIDMODELPARAMS[modelName])
 
 
 class EdgeLabel(Label):
@@ -309,48 +306,50 @@ class EdgeLabel(Label):
         self,
         text,
         alignment="center",
-        font_family="Dialog",
-        font_size="12",
-        font_style="plain",
+        fontFamily="Dialog",
+        fontSize="12",
+        fontStyle="plain",
         height="18.1328125",
         horizontalTextPosition="center",
-        underlined_text="false",
-        icon_text_gap="4",
-        text_color="#000000",
-        horizontal_text_position="center",
-        vertical_text_position="center",
+        verticalTextPosition="center",
+        underlinedText="false",
+        iconTextGap="4",
+        textColor="#000000",
+        # horizontal_text_position="center",
+        # vertical_text_position="center",
         visible="true",
-        has_background_color="false",
+        hasBackgroundColor="false",
         width="55.708984375",
-        model_name="centered",
-        model_position="center",
-        border_color=None,
-        background_color=None,
-        preferred_placement=None,
+        modelName="centered",
+        modelPosition="center",
+        borderColor=None,
+        backgroundColor=None,
+        preferredPlacement=None,
     ):
         super().__init__(
             text,
             height,
             width,
             alignment,
-            font_family,
-            font_size,
-            font_style,
+            fontFamily,
+            fontSize,
+            fontStyle,
             horizontalTextPosition,
-            underlined_text,
-            text_color,
-            icon_text_gap,
-            horizontal_text_position,
-            vertical_text_position,
+            verticalTextPosition,
+            underlinedText,
+            textColor,
+            iconTextGap,
+            # horizontal_text_position,
+            # vertical_text_position,
             visible,
-            border_color,
-            background_color,
-            has_background_color,
+            borderColor,
+            backgroundColor,
+            hasBackgroundColor,
         )
 
-        self.updateParam("modelName", model_name, EdgeLabel.VALIDMODELPARAMS.keys())
-        self.updateParam("modelPosition", model_position, EdgeLabel.VALIDMODELPARAMS[model_name])
-        self.updateParam("preferredPlacement", preferred_placement)
+        self.updateParam("modelName", modelName, EdgeLabel.VALIDMODELPARAMS.keys())
+        self.updateParam("modelPosition", modelPosition, EdgeLabel.VALIDMODELPARAMS[modelName])
+        self.updateParam("preferredPlacement", preferredPlacement)
 
 
 class CustomPropertyDefinition:
@@ -416,17 +415,17 @@ class Node:
     def __init__(
         self,
         name: str = "",  # non-unique node name
-        label_alignment="center",
+        labelAlignment="center",
         shape="rectangle",
-        font_family="Dialog",
-        underlined_text="false",
-        font_style="plain",
-        font_size="12",
-        shape_fill="#FFCC00",
+        fontFamily="Dialog",
+        underlinedText="false",
+        fontStyle="plain",
+        fontSize="12",
+        shapeFill="#FFCC00",
         transparent="false",
-        border_color="#000000",
-        border_type="line",
-        border_width="1.0",
+        borderColor="#000000",
+        borderType="line",
+        borderWidth="1.0",
         height=False,
         width=False,
         x=False,
@@ -443,14 +442,15 @@ class Node:
 
         self.list_of_labels: list[NodeLabel] = []  # initialize list of labels
 
-        self.add_label(
-            label_text=name,
-            alignment=label_alignment,
-            font_family=font_family,
-            underlined_text=underlined_text,
-            font_style=font_style,
-            font_size=font_size,
-        )
+        if name:
+            self.add_label(
+                label_text=name,
+                alignment=labelAlignment,
+                fontFamily=fontFamily,
+                underlinedText=underlinedText,
+                fontStyle=fontStyle,
+                fontSize=fontSize,
+            )
 
         self.node_type = node_type
         self.UML = UML
@@ -460,15 +460,15 @@ class Node:
         self.shape = shape
 
         # shape fill
-        self.shape_fill = shape_fill
+        self.shapeFill = shapeFill
         self.transparent = transparent
 
         # border options
-        self.border_color = border_color
-        self.border_width = border_width
+        self.borderColor = borderColor
+        self.borderWidth = borderWidth
 
-        checkValue("border_type", border_type, LINE_TYPES)
-        self.border_type = border_type
+        checkValue("borderType", borderType, LINE_TYPES)
+        self.borderType = borderType
 
         # geometry
         self.geom = {}
@@ -514,14 +514,14 @@ class Node:
             ET.SubElement(shape, "y:Geometry", **self.geom)
         # <y:Geometry height="30.0" width="30.0" x="475.0" y="727.0"/>
 
-        ET.SubElement(shape, "y:Fill", color=self.shape_fill, transparent=self.transparent)
+        ET.SubElement(shape, "y:Fill", color=self.shapeFill, transparent=self.transparent)
 
         ET.SubElement(
             shape,
             "y:BorderStyle",
-            color=self.border_color,
-            type=self.border_type,
-            width=self.border_width,
+            color=self.borderColor,
+            type=self.borderType,
+            width=self.borderWidth,
         )
 
         for label in self.list_of_labels:
@@ -599,15 +599,16 @@ class Edge:
         arrowhead="standard",
         arrowfoot="none",
         color="#000000",
-        line_type="line",
+        lineType="line",
         width="1.0",
         label_background_color="",
-        label_border_color="",
+        label_borderColor="",
         source_label=None,
         target_label=None,
         custom_properties=None,
         description="",
         url="",
+        list_of_labels=[],
     ):
         # Primary operations
         self.node1: Node = node1
@@ -620,8 +621,8 @@ class Edge:
         if name:
             self.add_label(
                 name,
-                border_color=label_border_color,
-                background_color=label_background_color,
+                borderColor=label_borderColor,
+                backgroundColor=label_background_color,
             )
 
         # if not node1 or not node2:
@@ -630,22 +631,26 @@ class Edge:
         if source_label is not None:
             self.add_label(
                 source_label,
-                model_name="six_pos",
-                model_position="shead",
-                preferred_placement="source_on_edge",
-                border_color=label_border_color,
-                background_color=label_background_color,
+                modelName="six_pos",
+                modelPosition="shead",
+                preferredPlacement="source_on_edge",
+                borderColor=label_borderColor,
+                backgroundColor=label_background_color,
             )
 
         if target_label is not None:
             self.add_label(
                 target_label,
-                model_name="six_pos",
-                model_position="shead",
-                preferred_placement="source_on_edge",
-                border_color=label_border_color,
-                background_color=label_background_color,
+                modelName="six_pos",
+                modelPosition="thead",
+                preferredPlacement="source_on_edge",
+                borderColor=label_borderColor,
+                backgroundColor=label_background_color,
             )
+
+        if list_of_labels:
+            for label_info_dict in list_of_labels:
+                self.add_label(**label_info_dict)
 
         checkValue("arrowhead", arrowhead, Edge.ARROW_TYPES)
         self.arrowhead = arrowhead
@@ -653,8 +658,8 @@ class Edge:
         checkValue("arrowfoot", arrowfoot, Edge.ARROW_TYPES)
         self.arrowfoot = arrowfoot
 
-        checkValue("line_type", line_type, LINE_TYPES)
-        self.line_type = line_type
+        checkValue("lineType", lineType, LINE_TYPES)
+        self.lineType = lineType
 
         self.color = color
         self.width = width
@@ -696,7 +701,7 @@ class Edge:
         pl = ET.SubElement(data, "y:PolyLineEdge")
 
         ET.SubElement(pl, "y:Arrows", source=self.arrowfoot, target=self.arrowhead)
-        ET.SubElement(pl, "y:LineStyle", color=self.color, type=self.line_type, width=self.width)
+        ET.SubElement(pl, "y:LineStyle", color=self.color, type=self.lineType, width=self.width)
 
         for label in self.list_of_labels:
             label.addSubElement(pl)
@@ -751,18 +756,18 @@ class Group:
         self,
         name: str = "",
         top_level_graph=None,
-        label_alignment="center",
+        labelAlignment="center",
         shape="rectangle",
         closed="false",
-        font_family="Dialog",
-        underlined_text="false",
-        font_style="plain",
-        font_size="12",
+        fontFamily="Dialog",
+        underlinedText="false",
+        fontStyle="plain",
+        fontSize="12",
         fill="#FFCC00",
         transparent="false",
-        border_color="#000000",
-        border_type="line",
-        border_width="1.0",
+        borderColor="#000000",
+        borderType="line",
+        borderWidth="1.0",
         height=False,
         width=False,
         x=False,
@@ -789,15 +794,15 @@ class Group:
         self.closed = closed
 
         # label formatting options
-        self.font_family = font_family
-        self.underlined_text = underlined_text
+        self.fontFamily = fontFamily
+        self.underlinedText = underlinedText
 
-        checkValue("font_style", font_style, FONT_STYLES)
-        self.font_style = font_style
-        self.font_size = font_size
+        checkValue("fontStyle", fontStyle, FONT_STYLES)
+        self.fontStyle = fontStyle
+        self.fontSize = fontSize
 
-        checkValue("label_alignment", label_alignment, HORIZONTAL_ALIGNMENTS)
-        self.label_alignment = label_alignment
+        checkValue("labelAlignment", labelAlignment, HORIZONTAL_ALIGNMENTS)
+        self.labelAlignment = labelAlignment
 
         self.fill = fill
         self.transparent = transparent
@@ -812,11 +817,11 @@ class Group:
         if y:
             self.geom["y"] = y
 
-        self.border_color = border_color
-        self.border_width = border_width
+        self.borderColor = borderColor
+        self.borderWidth = borderWidth
 
-        checkValue("border_type", border_type, LINE_TYPES)
-        self.border_type = border_type
+        checkValue("borderType", borderType, LINE_TYPES)
+        self.borderType = borderType
 
         self.description = description
         self.url = url
@@ -896,9 +901,9 @@ class Group:
         ET.SubElement(
             group_node,
             "y:BorderStyle",
-            color=self.border_color,
-            type=self.border_type,
-            width=self.border_width,
+            color=self.borderColor,
+            type=self.borderType,
+            width=self.borderWidth,
         )
 
         label = ET.SubElement(
@@ -906,11 +911,11 @@ class Group:
             "y:NodeLabel",
             modelName="internal",
             modelPosition="t",
-            fontFamily=self.font_family,
-            fontSize=self.font_size,
-            underlinedText=self.underlined_text,
-            fontStyle=self.font_style,
-            alignment=self.label_alignment,
+            fontFamily=self.fontFamily,
+            fontSize=self.fontSize,
+            underlinedText=self.underlinedText,
+            fontStyle=self.fontStyle,
+            alignment=self.labelAlignment,
         )
         label.text = self.name
 
@@ -1954,15 +1959,15 @@ class Graph:
                             # <Fill color="#FFCC00" transparent="false" />
                             fill = info_node.find("Fill")
                             if fill is not None:
-                                node_init_dict["shape_fill"] = fill.get("color")
+                                node_init_dict["shapeFill"] = fill.get("color")
                                 node_init_dict["transparent"] = fill.get("transparent")
 
                             # <BorderStyle color="#000000" type="line" width="1.0" />
                             border_style = info_node.find("BorderStyle")
                             if border_style is not None:
-                                node_init_dict["border_color"] = border_style.get("color")
-                                node_init_dict["border_type"] = border_style.get("type")
-                                node_init_dict["border_width"] = border_style.get("width")
+                                node_init_dict["borderColor"] = border_style.get("color")
+                                node_init_dict["borderType"] = border_style.get("type")
+                                node_init_dict["borderWidth"] = border_style.get("width")
 
                             # <Shape type="rectangle" />
                             shape_sub = info_node.find("Shape")
@@ -2022,20 +2027,20 @@ class Graph:
 
                                 borderstyle_node = group_node.find("BorderStyle")
                                 if borderstyle_node is not None:
-                                    group_init_dict["border_color"] = borderstyle_node.attrib.get("color", None)
-                                    group_init_dict["border_type"] = borderstyle_node.attrib.get("type", None)
-                                    group_init_dict["border_width"] = borderstyle_node.attrib.get("width", None)
+                                    group_init_dict["borderColor"] = borderstyle_node.attrib.get("color", None)
+                                    group_init_dict["borderType"] = borderstyle_node.attrib.get("type", None)
+                                    group_init_dict["borderWidth"] = borderstyle_node.attrib.get("width", None)
 
                                 nodelabel_node = group_node.find("NodeLabel")
                                 if nodelabel_node is not None:
                                     group_init_dict["name"] = (
                                         nodelabel_node.text
                                     )  # TODO: SHOULD THIS JUST BE THE FIRST ONE?  IN OTHER WORDS - IS THERE MULTIPLE THINGS TO BE CAUGHT HERE?
-                                    group_init_dict["font_family"] = nodelabel_node.attrib.get("fontFamily", None)
-                                    group_init_dict["font_size"] = nodelabel_node.attrib.get("fontSize", None)
-                                    group_init_dict["underlined_text"] = nodelabel_node.attrib.get("underlinedText", None)
-                                    group_init_dict["font_style"] = nodelabel_node.attrib.get("fontStyle", None)
-                                    group_init_dict["label_alignment"] = nodelabel_node.attrib.get("alignment", None)
+                                    group_init_dict["fontFamily"] = nodelabel_node.attrib.get("fontFamily", None)
+                                    group_init_dict["fontSize"] = nodelabel_node.attrib.get("fontSize", None)
+                                    group_init_dict["underlinedText"] = nodelabel_node.attrib.get("underlinedText", None)
+                                    group_init_dict["fontStyle"] = nodelabel_node.attrib.get("fontStyle", None)
+                                    group_init_dict["labelAlignment"] = nodelabel_node.attrib.get("alignment", None)
 
                                 group_shape_node = group_node.find("Shape")
                                 if group_shape_node is not None:
@@ -2114,7 +2119,7 @@ class Graph:
                         linestyle_node = polylineedge.find("LineStyle")
                         if linestyle_node is not None:
                             edge_init_dict["color"] = linestyle_node.attrib.get("color", None)
-                            edge_init_dict["line_type"] = linestyle_node.attrib.get("type", None)
+                            edge_init_dict["lineType"] = linestyle_node.attrib.get("type", None)
                             edge_init_dict["width"] = linestyle_node.attrib.get("width", None)
 
                         arrows_node = polylineedge.find("Arrows")
@@ -2122,11 +2127,24 @@ class Graph:
                             edge_init_dict["arrowfoot"] = arrows_node.attrib.get("source", None)
                             edge_init_dict["arrowhead"] = arrows_node.attrib.get("target", None)
 
-                        edgelabel_node = polylineedge.find("EdgeLabel")
-                        if edgelabel_node is not None:
-                            edge_init_dict["label"] = edgelabel_node.text
-                            edge_init_dict["arrowfoot"] = edgelabel_node.attrib.get("source", None)
-                            edge_init_dict["arrowhead"] = edgelabel_node.attrib.get("target", None)
+                        # edgelabel_node = polylineedge.find("EdgeLabel")
+                        edgelabel_nodes = polylineedge.findall("EdgeLabel")
+                        if edgelabel_nodes is not None:
+                            edge_init_dict["list_of_labels"] = list()
+                            for edgelabel_node in edgelabel_nodes:
+                                label_dict = dict()
+
+                                {
+                                    label_dict.update({key: edgelabel_node.attrib[key]})
+                                    for key in edgelabel_node.attrib
+                                    if key not in ["text", "source", "target"]
+                                }
+
+                                label_dict["label_text"] = edgelabel_node.text or ""
+                                # edge_init_dict["arrowfoot"] = edgelabel_node.attrib.get("source", None)
+                                # edge_init_dict["arrowhead"] = edgelabel_node.attrib.get("target", None)
+
+                                edge_init_dict["list_of_labels"].append(label_dict)
 
                     else:
                         info = data_node.text
@@ -2261,11 +2279,16 @@ def start_subprocess(command):
     return None
 
 
-def open_yed_file(file: File, force=False):
+def open_yed_file(file: File, force=False, wait=False):
     """Opens yed file - also will start yed if not open. Returns process or None."""
 
     def start():
         if app_platform == "Windows":
+            # if wait:
+            #     command = f"{PROGRAM_NAME} {file.fullpath}"
+            #     print(f"Running command: {command}")
+            #     subprocess.run(command)
+            # else:
             os.startfile(file.fullpath)
         elif app_platform == "Linux":
             # command = [PROGRAM_NAME, file.fullpath]

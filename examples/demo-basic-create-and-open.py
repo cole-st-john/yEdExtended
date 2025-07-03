@@ -1,4 +1,6 @@
 import yedextended as yed
+import os
+import time
 
 # Instantiate graph
 graph1 = yed.Graph()
@@ -29,4 +31,9 @@ graph1.add_edge(a, e)
 graph1.add_edge(b, group1_1)
 
 # Storing a graph to file and opening it
-graph1.persist_graph("test.graphml", overwrite=True).open_with_yed()
+saved_graph = graph1.persist_graph("test.graphml", overwrite=True)
+saved_graph.open_with_yed(wait=True)
+
+
+# remove file after viewing it
+# os.remove(saved_graph.fullpath)

@@ -86,7 +86,7 @@ def test_graph_added_node_has_default_fill():
     Then: shape fill should be expected default"""
     g = Graph()
     n1 = g.add_node("N1")
-    assert "#FFCC00" == n1.shape_fill
+    assert "#FFCC00" == n1.shapeFill
 
 
 def test_graph_added_node_keeps_custom_fill():
@@ -95,8 +95,8 @@ def test_graph_added_node_keeps_custom_fill():
     When: node added with fill
     Then: shape fill should be assigned"""
     g = Graph()
-    n1 = g.add_node("N1", shape_fill="#99CC00")
-    assert "#99CC00" == n1.shape_fill
+    n1 = g.add_node("N1", shapeFill="#99CC00")
+    assert "#99CC00" == n1.shapeFill
 
 
 def test_node_properties_after_nodes_and_edges_added():
@@ -107,8 +107,8 @@ def test_node_properties_after_nodes_and_edges_added():
     g = Graph()
 
     node1 = g.add_node("foo", shape="ellipse")
-    node2 = g.add_node("foo2", shape="roundrectangle", font_style="bolditalic")
-    node3 = g.add_node("abc", shape="triangle", font_style="bold")
+    node2 = g.add_node("foo2", shape="roundrectangle", fontStyle="bolditalic")
+    node3 = g.add_node("abc", shape="triangle", fontStyle="bold")
     edge1 = g.add_edge(node1, node2)
 
     assert node1.shape == "ellipse"
@@ -568,8 +568,6 @@ def test_create_graph_with_url_description():
     Given: simple graph
     When: when edges, nodes, groups are added with url, description
     Then: the info is findable in graph object"""
-    FILE1 = "test.graphml"
-
     graph1 = Graph()
 
     url = "http://www.google.com"
@@ -1098,7 +1096,7 @@ def test_node_geoms():
     assert node1.geom["width"] == "100", "Expected width to be 100"
     assert node1.geom["x"] == "200", "Expected x to be 200"
     assert node1.geom["y"] == "300", "Expected y to be 300"
-    graph.persist_graph()
+    graph.persist_graph(file)
 
     graph1 = Graph().from_existing_graph(file)
     node2 = graph1.nodes["n0"]
@@ -1106,6 +1104,38 @@ def test_node_geoms():
     assert node2.geom["width"] == "100", "Expected width to be 100"
     assert node2.geom["x"] == "200", "Expected x to be 200"
     assert node2.geom["y"] == "300", "Expected y to be 300"
+
+    if os.path.exists(file):
+        os.remove(file)
+
+
+def test_from_existing_graph_with_edge_labels():  # FIXME: need to clean up label management and creation in from_existing_graph
+    """
+    Given: new graph instance
+    When: adding edges with labels between nodes or groups
+    Then: these should be successfully importable when using from_existing_graph"""
+
+    file = "graph_with_edge_labels.graphml"
+    if os.path.exists(file):
+        os.remove(file)
+
+    g1 = Graph()
+    nodea = g1.add_node("a")
+    nodeb = g1.add_node("b")
+    g1.add_edge(nodea, nodeb, name="Edge A->B", source_label="Source A", target_label="Target B")
+
+    groupc = g1.add_group("c")
+    groupd = g1.add_group("d")
+    g1.add_edge(groupc, groupd).add_label("Edge C->D")
+
+    the_file = g1.persist_graph(file, overwrite=True)
+    # the_file.open_with_yed()
+
+    g2 = Graph().from_existing_graph(file=the_file)
+    print(g2.edges)
+    print(g2.nodes)
+
+    assert len(g2.edges) == 2, "Expected two edges in the graph"
 
     if os.path.exists(file):
         os.remove(file)

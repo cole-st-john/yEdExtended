@@ -17,6 +17,6 @@ modified_graph = graph1.persist_graph("bulk_changed", overwrite=True)
 modified_graph.open_with_yed(force=True)
 
 # makes easier to see feedback in cmd
-user_input = input("Type 'Y' to delete graph or ENTER to simply end program.")
-if user_input in ("Y", "y"):
-    os.remove(modified_graph.fullpath)
+# user_input = input("Type 'Y' to delete graph or ENTER to simply end program.")
+# if user_input in ("Y", "y"):
+# os.remove(modified_graph.fullpath)
