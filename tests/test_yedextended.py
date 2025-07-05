@@ -399,7 +399,7 @@ def test_round_trip():
     graph = Graph()
     a = graph.add_node("a")
     b = graph.add_node("b")
-    graph.add_edge(a, b)
+    graph.add_edge(a, b,name="a-b")
     graph_file = graph.persist_graph(FILE)
 
     # grabbing stored for comparison
