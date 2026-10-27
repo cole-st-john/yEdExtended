@@ -24,7 +24,7 @@ if "%PYTHON_VERSION%" == "3.12" (
     coverage-badge -o test_coverage.svg -f
 
     :: Configure Git with the author information
-    git config --global user.email "info@colestjohn.com"
+    git config --global user.email "91350898+cole-st-john@users.noreply.github.com"
     git config --global user.name "cole-st-john"
 
     :: Add the test_coverage.svg file to the repository

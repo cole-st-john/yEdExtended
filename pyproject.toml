@@ -1,7 +1,7 @@
 [project]
 name = "yedextended"
 dynamic = ["version"]
-authors = [{ name = "Cole St John", email = "info@colestjohn.com" }]
+authors = [{ name = "Cole St John", email = "91350898+cole-st-john@users.noreply.github.com" }]
 description = "Python library extending yEd functionality through programmatic interface to graphs."
 readme = "README.md"
 requires-python = ">=3.10"
